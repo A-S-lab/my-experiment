@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>jsPsych Experiment - Night Sky</title>
+  <!-- jsPsych v7 CDN -->
+  <script src="https://unpkg.com/jspsych@7.3.4"></script>
+  <script src="https://unpkg.com/@jspsych/plugin-html-keyboard-response@1.1.3"></script>
+  <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
+  <style>
+    /* 全体の背景設定 */
+    body, html {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #110e45; /* 紺色 */
+      overflow: hidden;
+      transition: background 3s ease-in-out;
+    }
+
+    .jspsych-content-wrapper {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* 月のスタイル */
+    .moon {
+      width: 100px;
+      height: 100px;
+      background-color: #f3f707; /* 黄色 */
+      border-radius: 50%;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      opacity: 1;
+      transition: opacity 3s ease-in-out;
+    }
+
+    /* 星（四角）のスタイル */
+    .star {
+      width: 25px;
+      height: 25px;
+      background-color: #f3f707; /* 黄色 */
+      position: absolute;
+      opacity: 1;
+      transition: opacity 3s ease-in-out;
+    }
+
+    /* 終了時のグラデーション背景 */
+    .gradient-bg {
+      background: linear-gradient(to top, #fcc277 0%, #fcfbb8 33%, #ccd4fc 66%, #1e1f78 100%) !important;
+    }
+
+    /* フェードアウト用クラス */
+    .fade-out {
+      opacity: 0 !important;
+    }
+
+    /* 終了テキスト */
+    .end-text {
+      color: white;
+      font-size: 2rem;
+      font-family: sans-serif;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+<script>
+  const jsPsych = initJsPsych();
+  const timeline = [];
+
+  // 1. 最初の説明（Enterで開始）
+  const start_screen = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div style="color: white;">Enterキーを押して開始してください</div>',
+    choices: ['Enter']
+  };
+  timeline.push(start_screen);
+
+  // 2. 月の表示
+  const moon_trial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="moon" id="moon"></div>',
+    choices: ['Enter'],
+    on_load: function() {
+      // 既存の星があれば消去（リトライ用などの保険）
+      const old_stars = document.querySelectorAll('.star');
+      old_stars.forEach(s => s.remove());
+    }
+  };
+  timeline.push(moon_trial);
+
+  // 3. 星を1つずつ出す（計9回）
+  // 位置情報を管理するための配列
+  let star_positions = [];
+
+  for (let i = 0; i < 9; i++) {
+    const star_trial = {
+      type: jsPsychHtmlKeyboardResponse,
+      stimulus: function() {
+        // 月を維持し、これまでの星をすべて描画する
+        let html = '<div class="moon" id="moon"></div>';
+        
+        // 新しい星の位置を計算
+        const random_top = Math.random() * 60 + 5; // 上部に表示
+        const random_left = Math.random() * 90 + 5;
+        star_positions.push({ top: random_top, left: random_left });
+
+        // すべての星を描画
+        star_positions.forEach(pos => {
+          html += `<div class="star" style="top: ${pos.top}%; left: ${pos.left}%;"></div>`;
+        });
+
+        return html;
+      },
+      choices: ['Enter']
+    };
+    timeline.push(star_trial);
+  }
+
+  // 4. フェードアウトと背景変更
+  const fade_out_trial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: function() {
+      let html = '<div class="moon" id="moon"></div>';
+      star_positions.forEach(pos => {
+        html += `<div class="star" style="top: ${pos.top}%; left: ${pos.left}%;"></div>`;
+      });
+      return html;
+    },
+    choices: "NO_KEYS",
+    trial_duration: 3000,
+    on_load: function() {
+      // 読み込み直後にフェードアウトアニメーション開始
+      setTimeout(() => {
+        const moon = document.getElementById('moon');
+        const stars = document.querySelectorAll('.star');
+        moon.classList.add('fade-out');
+        stars.forEach(s => s.classList.add('fade-out'));
+        
+        // 背景のグラデーション適用
+        document.body.classList.add('gradient-bg');
+      }, 100);
+    }
+  };
+  timeline.push(fade_out_trial);
+
+  // 5. 実験終了
+  const end_trial = {
+    type: jsPsychHtmlKeyboardResponse,
+    stimulus: '<div class="end-text">実験終了</div>',
+    choices: "NO_KEYS",
+    trial_duration: 5000
+  };
+  timeline.push(end_trial);
+
+  // 実験開始
+  jsPsych.run(timeline);
+</script>
+</body>
+</html>
