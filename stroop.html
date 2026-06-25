@@ -83,13 +83,15 @@
             }
         });
 
-        // 文字(word)と表示色(color)の組み合わせ
-        const stroop_stimuli = [
-            // 一致条件 (Congruent)
+        // 一致条件の刺激リスト (Congruent: 3種類)
+        const congruent_stimuli = [
             { word: "赤", color: "red", condition: "congruent", correct_response: "r" },
             { word: "青", color: "blue", condition: "congruent", correct_response: "b" },
-            { word: "緑", color: "green", condition: "congruent", correct_response: "g" },
-            // 不一致条件 (Incongruent)
+            { word: "緑", color: "green", condition: "congruent", correct_response: "g" }
+        ];
+
+        // 不一致条件の刺激リスト (Incongruent: 6種類)
+        const incongruent_stimuli = [
             { word: "赤", color: "blue", condition: "incongruent", correct_response: "b" },
             { word: "赤", color: "green", condition: "incongruent", correct_response: "g" },
             { word: "青", color: "red", condition: "incongruent", correct_response: "r" },
@@ -98,8 +100,12 @@
             { word: "緑", color: "blue", condition: "incongruent", correct_response: "b" }
         ];
 
-        // 10試行分をランダムに抽出 (元の設定を維持)
-        const test_trials_data = jsPsych.randomization.sampleWithReplacement(stroop_stimuli, 10);
+        // それぞれ10試行ずつランダムに抽出する（復元抽出）
+        const congruent_trials = jsPsych.randomization.sampleWithReplacement(congruent_stimuli, 10);
+        const incongruent_trials = jsPsych.randomization.sampleWithReplacement(incongruent_stimuli, 10);
+
+        // 2つの配列を結合し、合計20試行のリストを作成してランダムにシャッフルする
+        const test_trials_data = jsPsych.randomization.shuffle(congruent_trials.concat(incongruent_trials));
 
         let timeline = [];
 
@@ -136,7 +142,7 @@
         };
         timeline.push(participant_info);
 
-        // 2. 開始ボタン (元の設定を維持)
+        // 2. 開始ボタン
         const start_button = {
             type: jsPsychHtmlButtonResponse,
             stimulus: '<p class="instructions-text">ストループ課題を開始します。</p>',
@@ -145,7 +151,7 @@
         };
         timeline.push(start_button);
 
-        // 3. 教示画面 (元の設定を維持)
+        // 3. 教示画面
         const instructions = {
             type: jsPsychHtmlKeyboardResponse,
             stimulus: `
@@ -166,7 +172,7 @@
         // 4. 実験試行ループ
         test_trials_data.forEach((trial_info) => {
             
-            // a. 注視点 (+) 500ms (元の設定を維持)
+            // a. 注視点 (+) 500ms
             const fixation = {
                 type: jsPsychHtmlKeyboardResponse,
                 stimulus: '<div class="fixation-text">+</div>',
@@ -196,7 +202,7 @@
                 }
             };
 
-            // c. 試行間隔 (ITI) 1000ms (元の設定を維持)
+            // c. 試行間隔 (ITI) 1000ms
             const iti = {
                 type: jsPsychHtmlKeyboardResponse,
                 stimulus: '', // 空白
