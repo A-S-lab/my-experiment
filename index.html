@@ -15,7 +15,7 @@
             --color-bg-card: #ffffff;       /* カード用の純白 */
             --color-black-rich: #111111;    /* デザインを引き締める漆黒 */
             --color-black-light: #2d3135;   /* 視覚疲労の少ないマイルドなブラック */
-            --color-orange-vivid: #f97316;  /* ビビッドオレンジ（#f97316） */
+            --color-orange-vivid: #f97316;  /* ビビッドオレンジ */
             --color-orange-light: #fff7ed;  /* 極薄オレンジ */
             --color-orange-glow: rgba(249, 115, 22, 0.08); /* グロウ効果用 */
             --color-text-sub: #6b7280;      /* 補助テキスト用のグレー */
@@ -243,7 +243,7 @@
         }
 
         .card-top {
-            margin-bottom: 40px;
+            margin-bottom: 30px;
         }
 
         /* IDタグ */
@@ -276,7 +276,15 @@
             line-height: 1.75;
         }
 
-        /* アクションボタン */
+        /* アクションエリア全体のスタイリング */
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: auto;
+        }
+
+        /* 基本ボタン定義 */
         .btn-link {
             display: block;
             text-align: center;
@@ -291,7 +299,6 @@
                         transform 0.25s var(--ease-out-expo),
                         box-shadow 0.25s var(--ease-out-expo);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-            margin-top: auto;
             cursor: pointer;
             border: none;
             outline: none;
@@ -309,6 +316,46 @@
         .btn-link:active {
             transform: translateY(1px);
             box-shadow: 0 4px 10px rgba(249, 115, 22, 0.15);
+        }
+
+        /* プレレジ用の白抜きボタン */
+        .btn-prereg {
+            background-color: transparent;
+            color: var(--color-black-light);
+            border: 1px solid rgba(17, 17, 17, 0.2);
+            box-shadow: none;
+        }
+
+        .btn-prereg:hover {
+            background-color: rgba(249, 115, 22, 0.04);
+            border-color: var(--color-orange-vivid);
+            color: var(--color-orange-vivid);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(249, 115, 22, 0.08);
+        }
+
+        /* 履歴（証拠）用の控えめなアンダーライン型サブボタン */
+        .btn-history-link {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: var(--color-text-sub);
+            text-decoration: none;
+            padding: 4px 0;
+            transition: color 0.2s ease, text-decoration 0.2s ease;
+            font-weight: 400;
+            border: none;
+            background: none;
+            cursor: pointer;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .btn-history-link:hover {
+            color: var(--color-orange-vivid);
+            text-decoration: underline;
         }
 
         /* 実験ページ埋め込み用ビューワー */
@@ -576,17 +623,34 @@
                     <h2 class="experiment-name">実験0：はじめてのWebページ</h2>
                     <p class="experiment-desc">第2回で作成した記念すべき「Hello World」のページです。まずはここから動作確認を兼ねてご覧ください。</p>
                 </div>
-                <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/hello_world.html', '実験0：はじめてのWebページ')" class="btn-link">Hello Worldを見る</button>
+                <div class="card-actions">
+                    <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/hello_world.html', '実験0：はじめてのWebページ')" class="btn-link">Hello Worldを見る</button>
+                </div>
             </article>
 
-            <!-- 実験1 -->
+            <!-- 実験1（ストループ課題 & プレレジ登録情報） -->
             <article class="experiment-card">
                 <div class="card-top">
                     <span class="experiment-id">EXPERIMENT 1</span>
                     <h2 class="experiment-name">実験1：ストループ課題</h2>
                     <p class="experiment-desc">「文字の意味（文字の名前）」と「実際に塗られている文字の色」が一致しない時の干渉度合いを測定する、簡単な心理テストです。（所要時間：約3分）</p>
                 </div>
-                <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/stroop.html', '実験1：ストループ課題')" class="btn-link">実験1に参加する</button>
+                <!-- 縦並びに整理されたボタン・リンクエリア -->
+                <div class="card-actions">
+                    <!-- メインボタン：実験開始 -->
+                    <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/stroop.html', '実験1：ストループ課題')" class="btn-link">実験1に参加する</button>
+                    
+                    <!-- サブボタン：プレレジ確認 -->
+                    <a href="https://github.com/A-S-lab/my-experiment/blob/main/preregistration.md" target="_blank" rel="noopener noreferrer" class="btn-link btn-prereg">
+                        プレレジを確認する
+                    </a>
+                    
+                    <!-- テキストリンク：変更履歴（タイムスタンプの証明） -->
+                    <a href="https://github.com/A-S-lab/my-experiment/commits/main/preregistration.md" target="_blank" rel="noopener noreferrer" class="btn-history-link">
+                        変更履歴（証拠）を確認する
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:middle;"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
+                </div>
             </article>
 
             <!-- 実験2 -->
@@ -596,7 +660,9 @@
                     <h2 class="experiment-name">実験2：ミュラー・リヤー錯視</h2>
                     <p class="experiment-desc">矢印の向きによって線分の長さが違って見える有名な錯覚現象を、スライダーを用いて定量化するテストです。（所要時間：約2分）</p>
                 </div>
-                <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/muller_lyer_final.html', '実験2：ミュラー・リヤー錯視')" class="btn-link">実験2に参加する</button>
+                <div class="card-actions">
+                    <button onclick="openExperiment('https://a-s-lab.github.io/my-experiment/muller_lyer_final.html', '実験2：ミュラー・リヤー錯視')" class="btn-link">実験2に参加する</button>
+                </div>
             </article>
 
         </main>
