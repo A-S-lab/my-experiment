@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>ミュラー・リヤー錯視実験 (Müller-Lyer Illusion)</title>
   
   <!-- jsPsych core and plugins via CDN -->
@@ -15,89 +15,114 @@
 
   <!-- Tailwind CSS for elegant design -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js for beautiful live data analysis -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
-    /* 画面全体の中央配置 & ダーク/ライトに調和する洗練されたスタイル */
-    body {
-      background-color: #f8fafc;
-      color: #1e293b;
-      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    /* 画面全体で安全にスクロールできるように設計 */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background-color: #f1f5f9;
+      color: #0f172a;
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
       line-height: 1.6;
+      overflow-y: auto; /* 縦スクロールを常に可能に */
+      overflow-x: hidden; /* 全体的な横揺れを防止 */
+      -webkit-overflow-scrolling: touch; /* iOSでの慣性スクロールを有効化 */
     }
+    
+    /* コンテンツが小さい時は中央、はみ出す時は上詰めでスクロール可能にする設計 */
     .jspsych-content-wrapper {
       display: flex;
-      align-items: center;
       justify-content: center;
+      align-items: flex-start; /* 上詰めで開始、margin: auto で中央寄せ */
       min-height: 100vh;
-    }
-    .jspsych-content {
-      max-width: 800px;
       width: 100%;
-      padding: 1.5rem;
+      padding: 1.5rem 1rem 5rem 1rem; /* 下部にスマホのセーフエリア用の十分な余白を設定 */
+      box-sizing: border-box;
     }
-    /* キャンバスの枠線と影 */
+    
+    .jspsych-content {
+      max-width: 850px;
+      width: 100%;
+      background: transparent;
+      margin-top: auto;
+      margin-bottom: auto; /* 上下中央寄せを維持しつつ、溢れたときはスクロール可能に */
+    }
+
+    /* キャンバスの美化とレスポンシブ化 */
     canvas {
-      border: 1px solid #cbd5e1;
-      border-radius: 12px;
+      border: 2px solid #e2e8f0;
+      border-radius: 1rem;
       background-color: #ffffff;
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -4px rgba(0, 0, 0, 0.05);
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
       max-width: 100%;
       height: auto;
+      display: block;
     }
-    /* サーベイ画面のフォームデザイン微調整 */
+
+    /* 入力フォームのモダン化 */
     .jspsych-survey-text-question input[type="text"] {
       width: 100% !important;
-      max-width: 320px;
-      margin: 1rem auto !important;
-      padding: 0.75rem 1rem !important;
-      border: 2px solid #e2e8f0 !important;
+      max-width: 360px;
+      margin: 1.25rem auto !important;
+      padding: 0.875rem 1.25rem !important;
+      border: 2px solid #cbd5e1 !important;
       border-radius: 0.75rem !important;
       font-size: 1.1rem !important;
       text-align: center;
-      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
-      transition: all 0.2s;
+      box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+      transition: all 0.2s ease-in-out;
     }
     .jspsych-survey-text-question input[type="text"]:focus {
       outline: none;
-      border-color: #4f46e5 !important;
-      box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15) !important;
+      border-color: #6366f1 !important;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15) !important;
     }
+
+    /* ボタンのスマホ最適化（タップターゲット拡大と十分な下部余白） */
     .jspsych-btn {
       background-color: #4f46e5 !important;
       border-radius: 0.75rem !important;
-      padding: 0.875rem 2.5rem !important;
+      padding: 1rem 2.5rem !important; /* スマホでタップしやすいように高さを確保 */
       font-weight: 700 !important;
-      font-size: 1.1rem !important;
-      transition: all 0.2s !important;
-      box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+      font-size: 1.05rem !important;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      box-shadow: 0 4px 12px rgba(79, 70, 229, 0.25) !important;
+      color: white !important;
+      border: none !important;
+      touch-action: manipulation; /* ダブルタップズームによるクリック遅延を防止 */
     }
     .jspsych-btn:hover {
       background-color: #4338ca !important;
-      transform: translateY(-1px);
-      box-shadow: 0 6px 12px -1px rgba(79, 70, 229, 0.3);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(79, 70, 229, 0.35) !important;
     }
     .jspsych-btn:active {
       transform: translateY(1px);
     }
-    /* スライダーの見た目カスタマイズ */
+
+    /* 高級感のあるカスタムスライダー */
     input[type="range"] {
       -webkit-appearance: none;
       width: 100%;
-      height: 8px;
+      height: 12px; /* 少し太くしてタッチ操作をしやすく */
       background: #e2e8f0;
-      border-radius: 4px;
+      border-radius: 9999px;
       outline: none;
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
-      width: 24px;
-      height: 24px;
+      width: 32px; /* スマホで掴みやすいようにサイズを拡大 */
+      height: 32px;
       border-radius: 50%;
       background: #4f46e5;
       cursor: pointer;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-      transition: background 0.15s, transform 0.1s;
+      box-shadow: 0 4px 8px rgba(79, 70, 229, 0.4);
+      transition: background-color 0.15s, transform 0.1s;
     }
     input[type="range"]::-webkit-slider-thumb:hover {
       background: #4338ca;
@@ -140,85 +165,30 @@
     // タイムラインの配列
     const timeline = [];
 
-    // --- 0. 学籍番号（参加者ID）入力画面 ---
-    const id_input_screen = {
-      type: jsPsychSurveyText,
-      questions: [
-        { 
-          prompt: `
-            <div class="text-center mb-4">
-              <h1 class="text-2xl font-bold text-slate-800 mb-2">はじめに</h1>
-              <p class="text-base text-slate-500">データをきろくするため、学籍番号（または参加者ID）を入力してください。</p>
-            </div>
-          `, 
-          placeholder: "例: 2026X1234",
-          name: 'student_id', 
-          required: true 
-        }
-      ],
-      button_label: 'つぎへ進む',
-      on_finish: function(data) {
-        // 学籍番号と開始時のタイムスタンプをすべてのデータに紐付け
-        jsPsych.data.addProperties({
-          subject_id: data.response.student_id,
-          timestamp: new Date().toLocaleString('ja-JP')
-        });
-      }
-    };
-    timeline.push(id_input_screen);
-
-    // --- 1. インストラクション (教示画面) ---
-    const instructions = {
-      type: jsPsychHtmlButtonResponse,
-      stimulus: `
-        <div class="text-left max-w-xl mx-auto bg-white p-8 rounded-2xl shadow-md border border-slate-200">
-          <h1 class="text-2xl font-bold text-center text-indigo-700 mb-6">目のテストへようこそ！</h1>
-          
-          <div class="space-y-4 text-slate-700 text-lg leading-relaxed">
-            <p class="font-bold text-center text-slate-800 mb-2">
-              ご協力ありがとうございます。<br>これから短い目のテストを行います。
-            </p>
-            
-            <p>
-              画面に２つの<strong>「矢印のような図形」</strong>が上下に並んで表示されます。
-            </p>
-
-            <ul class="list-disc pl-6 space-y-2 text-slate-600">
-              <li><strong>上の図形</strong>は、長さが変わりません。</li>
-              <li><strong>下の図形</strong>は、画面の下にある「つまみ（スライダー）」を左右にうごかすと、長さがかわります。</li>
-            </ul>
-
-            <p class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-indigo-800 font-semibold text-center">
-              つまみをうごかして、<strong>「上の横線」と「下の横線」がピッタリ同じ長さ</strong>に見えるところで、【決定】ボタンを押してください。
-            </p>
-          </div>
-        </div>
-      `,
-      choices: ['テストを開始する'],
-      button_html: `<button class="jspsych-btn mt-6 w-full py-4 text-lg font-bold text-white bg-indigo-600 rounded-xl shadow hover:bg-indigo-700 transition">%choice%</button>`
-    };
-    timeline.push(instructions);
-
-    // --- 2. 実験試行（ループ用テンプレート） ---
-    // 矢羽を描画する汎用関数 (Step 1 の仕様を厳格維持)
+    // --- STREAMING_CHUNK: Defining arrow drawing function... ---
+    // 矢羽を描画する汎用関数
     function drawArrow(ctx, x, y, length, finLength, angle, direction) {
       // 主幹（水平線）の描画
       ctx.beginPath();
       ctx.moveTo(x - length / 2, y);
       ctx.lineTo(x + length / 2, y);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 3.5;
       ctx.strokeStyle = '#1e293b';
+      ctx.lineCap = 'round';
       ctx.stroke();
 
       // 矢羽の角度（ラジアン）の計算
       const rad = (angle * Math.PI) / 180;
 
-      // 左右の端点座標
+      // 左右 of 端点座標
       const leftX = x - length / 2;
       const rightX = x + length / 2;
 
-      // 左側の矢羽
       ctx.beginPath();
+      ctx.lineWidth = 3.5;
+      ctx.lineJoin = 'round';
+
+      // 左側の矢羽
       if (direction === -1) {
         // 内向き: 主幹の内側に羽が伸びる (→ 方向に羽)
         ctx.moveTo(leftX, y);
@@ -250,50 +220,120 @@
       ctx.stroke();
     }
 
-    // 各試行の定義
+    // --- STREAMING_CHUNK: Creating ID input screen... ---
+    // --- 0. 学籍番号（参加者ID）入力画面 ---
+    const id_input_screen = {
+      type: jsPsychSurveyText,
+      questions: [
+        { 
+          prompt: `
+            <div class="text-center mb-2 px-2">
+              <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-3 tracking-tight">心理学実験システム</h1>
+              <p class="text-sm sm:text-base text-slate-500 max-w-md mx-auto">データを正確に記録するため、学籍番号（または参加者用ID）を入力してください。</p>
+            </div>
+          `, 
+          placeholder: "例: 2026X1234",
+          name: 'student_id', 
+          required: true 
+        }
+      ],
+      button_label: '次へ進む',
+      button_html: `<button class="jspsych-btn mt-6 mb-12 px-8 py-4 text-base font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition">%choice%</button>`,
+      on_finish: function(data) {
+        jsPsych.data.addProperties({
+          subject_id: data.response.student_id,
+          timestamp: new Date().toLocaleString('ja-JP')
+        });
+      }
+    };
+    timeline.push(id_input_screen);
+
+    // --- STREAMING_CHUNK: Creating instructions screen... ---
+    // --- 1. インストラクション (教示画面) ---
+    const instructions = {
+      type: jsPsychHtmlButtonResponse,
+      stimulus: `
+        <div class="text-left max-w-xl mx-auto bg-white p-5 sm:p-8 rounded-2xl shadow-xl border border-slate-100 my-2">
+          <h1 class="text-xl sm:text-2xl font-extrabold text-center text-indigo-700 mb-5 flex items-center justify-center gap-2">
+            <svg class="w-6 h-6 sm:w-7 sm:h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+            ミュラー・リヤー錯視実験
+          </h1>
+          
+          <div class="space-y-4 text-slate-600 text-sm sm:text-base leading-relaxed">
+            <p class="font-bold text-center text-slate-800 mb-4 text-base sm:text-lg">
+              ご協力ありがとうございます。<br>目の錯覚に関する実験を開始します。
+            </p>
+            
+            <p>
+              画面に２つの<strong>「矢印のような図形」</strong>が上下に並んで表示されます。
+            </p>
+
+            <ul class="list-none pl-1 space-y-3">
+              <li class="flex items-start gap-2">
+                <span class="inline-flex items-center justify-center bg-indigo-100 text-indigo-700 font-bold rounded-full w-5 h-5 text-xs mt-1 shrink-0">上</span>
+                <div><strong>上の図形 (標準刺激)</strong>：長さは変化しません。</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="inline-flex items-center justify-center bg-emerald-100 text-emerald-700 font-bold rounded-full w-5 h-5 text-xs mt-1 shrink-0">下</span>
+                <div><strong>下の図形 (比較刺激)</strong>：スライダーを左右に動かすと、長さが変わります。</div>
+              </li>
+            </ul>
+
+            <div class="bg-indigo-50 border border-indigo-100 p-4 rounded-xl text-indigo-900 font-medium text-xs sm:text-sm text-center shadow-inner mt-4">
+              下のつまみを動かして、<strong class="text-indigo-600">「上の横線」と「下の横線」が完全に同じ長さ</strong>に見えるところで、画面下の決定ボタンを押してください。
+            </div>
+          </div>
+        </div>
+      `,
+      choices: ['実験を開始する'],
+      // mb-12 にてスマホ底部でのタップ障害を完全に防止
+      button_html: `<button class="jspsych-btn mt-6 mb-12 w-full py-4 text-base sm:text-lg font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition">%choice%</button>`
+    };
+    timeline.push(instructions);
+
+    // --- STREAMING_CHUNK: Setting up experimental trials... ---
+    // --- 2. 実験試行 ---
     trial_list.forEach((config, index) => {
-      // 比較刺激の初期長さをランダム(100〜300px)に決定
       let currentComparisonLength = Math.floor(Math.random() * (300 - 100 + 1)) + 100;
       const initialLength = currentComparisonLength; // 記録用
 
-      // Canvasのサイズ定義
       const canvasWidth = 700;
       const canvasHeight = 400;
 
       const trial = {
         type: jsPsychHtmlButtonResponse,
         stimulus: function() {
-          // Canvasとスライダー、決定ボタンを配置した洗練されたUIを生成
           return `
-            <div class="text-center w-full flex flex-col items-center">
+            <div class="text-center w-full flex flex-col items-center px-1">
               <!-- 進行状況を示すカウンター -->
-              <div class="text-sm font-semibold text-slate-400 mb-2">
-                現在 ${index + 1} 回目 / 全 ${trial_list.length} 回
+              <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold text-slate-500 mb-3 bg-white px-4 py-1.5 rounded-full shadow-sm">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 animate-pulse"></span>
+                試行 ${index + 1} / ${trial_list.length}
               </div>
               
-              <!-- 描画領域 -->
+              <!-- 描画領域 (スマホでも綺麗にアスペクト比を維持) -->
               <div class="w-full flex justify-center mb-4">
                 <canvas id="experiment-canvas" width="${canvasWidth}" height="${canvasHeight}"></canvas>
               </div>
 
               <!-- 操作パネル -->
-              <div class="w-full max-w-md bg-white p-6 rounded-2xl border border-slate-150 shadow-sm space-y-4">
-                <p class="text-base font-bold text-slate-700">
-                  下のつまみを動かして、横線の長さを合わせましょう
+              <div class="w-full max-w-lg bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-md space-y-4">
+                <p class="text-xs sm:text-sm font-bold text-slate-700">
+                  下のつまみを動かして、２本の横線の長さを合わせてください
                 </p>
                 
-                <!-- スライダーコントロール -->
-                <div class="flex items-center space-x-3 w-full">
-                  <span class="text-xs font-bold text-slate-400">みじかく</span>
+                <!-- スライダーコントロール (高さを確保してタッチしやすく) -->
+                <div class="flex items-center space-x-4 w-full py-2">
+                  <span class="text-xs font-bold text-slate-400 select-none shrink-0">短く</span>
                   <input type="range" id="length-slider" min="50" max="500" step="1" value="${currentComparisonLength}" class="flex-grow">
-                  <span class="text-xs font-bold text-slate-400">ながく</span>
+                  <span class="text-xs font-bold text-slate-400 select-none shrink-0">長く</span>
                 </div>
               </div>
             </div>
           `;
         },
-        choices: ['ピッタリ同じ長さになったので、決定する'],
-        button_html: `<button id="confirm-btn" class="jspsych-btn mt-6 px-8 py-4 w-full max-w-md text-lg font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition">%choice%</button>`,
+        choices: ['ピッタリ同じ長さになったので決定'],
+        button_html: `<button id="confirm-btn" class="jspsych-btn mt-6 mb-12 px-8 py-4 w-full max-w-lg text-base sm:text-lg font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition">%choice%</button>`,
         
         on_load: function() {
           const canvas = document.getElementById('experiment-canvas');
@@ -301,23 +341,28 @@
           const ctx = canvas.getContext('2d');
           const slider = document.getElementById('length-slider');
 
-          // 再描画関数
+          // 高解像度ディスプレイ(Retina等)対応
+          const dpr = window.devicePixelRatio || 1;
+          canvas.width = canvasWidth * dpr;
+          canvas.height = canvasHeight * dpr;
+          canvas.style.width = '100%';
+          canvas.style.maxWidth = `${canvasWidth}px`;
+          canvas.style.height = 'auto';
+          ctx.scale(dpr, dpr);
+
           function draw() {
             ctx.clearRect(0, 0, canvasWidth, canvasHeight);
 
             // 1. 上段：標準刺激 (内向き矢羽, 200px固定)
-            // 位置: (350, 130)
             drawArrow(ctx, 350, 130, 200, config.fin_length, config.shaft_angle, -1);
 
             // 2. 下段：比較刺激 (外向き矢羽, スライダー連動)
-            // 位置: (350, 270)
             drawArrow(ctx, 350, 270, currentComparisonLength, config.fin_length, config.shaft_angle, 1);
           }
 
-          // 初期描画
           draw();
 
-          // スライダーイベントの登録 (inputイベントでリアルタイムに数値を更新しながら再描画)
+          // スライダーイベント
           slider.addEventListener('input', function(e) {
             currentComparisonLength = parseFloat(e.target.value);
             draw();
@@ -325,14 +370,12 @@
         },
 
         on_finish: function(data) {
-          // 独立した列として保存する構造化データ (仕様2を厳格に遵守)
           data.angle = config.shaft_angle;
           data.wing_length = config.fin_length;
           data.standard_len = 200;
           data.pse = Math.round(currentComparisonLength);
           data.error_amount = Math.round(currentComparisonLength - 200);
 
-          // 従来の表示互換用データも格納
           data.initial_length = initialLength;
           data.adjusted_length = data.pse;
           data.illusion_amount = data.error_amount;
@@ -342,25 +385,22 @@
       timeline.push(trial);
     });
 
-    // --- 3. データの自動送信画面 (新規追加) ---
+    // --- STREAMING_CHUNK: Processing data saving screen... ---
+    // --- 3. データの自動送信画面 ---
     const send_data_screen = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: `
-        <div class="text-center p-8 bg-white rounded-2xl shadow-xl max-w-md mx-auto border border-slate-200">
-          <div class="animate-spin inline-block w-10 h-10 border-[4px] border-indigo-600 border-t-transparent rounded-full mb-4"></div>
-          <p class="text-xl font-bold text-slate-800 mb-2">送信中...</p>
-          <p class="text-sm text-slate-500">データをGoogleスプレッドシートに保存しています。ブラウザを閉じないでください。</p>
+        <div class="text-center p-8 sm:p-10 bg-white rounded-3xl shadow-xl max-w-md mx-auto border border-slate-100 my-4">
+          <div class="animate-spin inline-block w-12 h-12 border-[4px] border-indigo-600 border-t-transparent rounded-full mb-5"></div>
+          <p class="text-lg sm:text-xl font-bold text-slate-800 mb-2">データを保存中...</p>
+          <p class="text-xs sm:text-sm text-slate-400 leading-relaxed">測定結果をスプレッドシートに同期しています。<br>このまま少しお待ちください。</p>
         </div>
       `,
-      choices: "NO_KEYS", // キー入力不可
+      choices: "NO_KEYS",
       on_load: function() {
-        // 反応データのみを抽出 (ID入力や教示等を除外)
         const rawTrials = jsPsych.data.get().filter({trial_type: 'html-button-response'}).values();
+        const sliderTrials = rawTrials.slice(1); // 最初のインストラクション除外
         
-        // 最初のインストラクション（1個目のhtml-button-response）を除外して、スライダー試行のデータのみを抽出
-        const sliderTrials = rawTrials.slice(1);
-        
-        // 送信用のデータ構造を作成 (余分なjsPsych標準の内部変数を無視)
         const structuredPayload = sliderTrials.map((t, idx) => {
           return {
             subject_id: t.subject_id,
@@ -374,45 +414,46 @@
           };
         });
 
-        // GASへJSONデータとしてPOST送信
         fetch(GAS_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify(structuredPayload),
-          mode: 'no-cors' // ブラウザ制限(CORS)を回避して送信を実行
+          mode: 'no-cors'
         })
         .then(() => {
-          console.log("Data transmission initiated");
-          // 送信アニメーションを見せるため、わずかに遅延を挟んで次の完了画面へ進行
+          console.log("Data transmission completed");
           setTimeout(() => {
             jsPsych.finishTrial();
           }, 1500);
         })
         .catch(err => {
           console.error("Data transmission failed: ", err);
-          alert("自動保存に失敗しました。次の画面でデータを手動で保存してください。");
-          jsPsych.finishTrial();
+          jsPsych.data.addProperties({ transmission_failed: true });
+          setTimeout(() => {
+            jsPsych.finishTrial();
+          }, 1500);
         });
       }
     };
     timeline.push(send_data_screen);
 
+    // --- STREAMING_CHUNK: Generating interactive results screen... ---
     // --- 4. 結果表示 & 完了報告画面 ---
     const results_screen = {
       type: jsPsychHtmlKeyboardResponse,
       stimulus: function() {
-        // 全試行のデータを取得
         const rawTrials = jsPsych.data.get().filter({trial_type: 'html-button-response'}).values();
-        const trials = rawTrials.slice(1); // 教示画面分をカット
+        const trials = rawTrials.slice(1);
         const studentId = jsPsych.data.get().select('subject_id').values[0] || "未登録";
+        const hasFailed = jsPsych.data.get().select('transmission_failed').values[0] || false;
 
-        // 条件別の統計を計算するためのオブジェクト
+        // 各条件統計の計算
         const summary = {};
         conditions.forEach(cond => {
           const key = `角度${cond.shaft_angle}° / 長さ${cond.fin_length}px`;
-          summary[key] = { sum: 0, count: 0, values: [] };
+          summary[key] = { sum: 0, count: 0, values: [], rawCond: cond };
         });
 
         trials.forEach(t => {
@@ -424,53 +465,98 @@
           }
         });
 
-        // HTML形式の結果テーブルを生成
+        // テーブル行とグラフデータの構築
         let tableRows = '';
+        const chartLabels = [];
+        const chartData = [];
+
         Object.keys(summary).forEach(key => {
           const avg = summary[key].count > 0 ? (summary[key].sum / summary[key].count).toFixed(1) : 0;
-          const diff = (avg - 200).toFixed(1); // 基準の200pxからの差
+          const diff = (avg - 200).toFixed(1);
+          chartLabels.push(key);
+          chartData.push(diff);
+
           tableRows += `
             <tr class="border-b border-slate-100 hover:bg-slate-50 transition">
-              <td class="px-6 py-4 text-sm font-semibold text-slate-700">${key}</td>
-              <td class="px-6 py-4 text-sm text-center text-slate-600">200 px</td>
-              <td class="px-6 py-4 text-sm text-center font-mono text-slate-800 font-bold">${avg} px</td>
-              <td class="px-6 py-4 text-sm text-center font-mono ${diff >= 0 ? 'text-rose-600' : 'text-blue-600'}">
+              <td class="px-3 sm:px-5 py-3 text-xs sm:text-sm font-semibold text-slate-700 whitespace-nowrap">${key}</td>
+              <td class="px-3 sm:px-5 py-3 text-xs sm:text-sm text-center text-slate-500 whitespace-nowrap">200 px</td>
+              <td class="px-3 sm:px-5 py-3 text-xs sm:text-sm text-center font-mono text-slate-800 font-bold whitespace-nowrap">${avg} px</td>
+              <td class="px-3 sm:px-5 py-3 text-xs sm:text-sm text-center font-mono ${diff >= 0 ? 'text-rose-500' : 'text-blue-500'} font-bold whitespace-nowrap">
                 ${diff >= 0 ? '+' : ''}${diff} px
               </td>
             </tr>
           `;
         });
 
-        // コピー用CSVデータの整形（指定のカラム構造で生成）
         let csvContent = "subject_id,timestamp,angle,wing_length,standard_len,pse,error_amount\\n";
         trials.forEach((t) => {
           csvContent += `${t.subject_id},"${t.timestamp}",${t.angle},${t.wing_length},${t.standard_len},${t.pse},${t.error_amount}\\n`;
         });
 
-        return `
-          <div class="text-left bg-white p-8 rounded-2xl shadow-xl border border-slate-200 max-w-2xl mx-auto">
-            <h2 class="text-2xl font-bold text-center text-emerald-600 mb-2 flex items-center justify-center gap-2">
-              <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-              すべてのテストが終了しました！
-            </h2>
-            <div class="text-center text-sm font-mono text-slate-500 mb-6 bg-slate-50 py-1.5 px-3 rounded-lg inline-block mx-auto w-full">
-              学籍番号 (subject_id): <span class="font-bold text-slate-800">${studentId}</span>
+        // 警告・成功バナーの構築
+        let alertBanner = '';
+        if (hasFailed) {
+          alertBanner = `
+            <div class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 rounded-r-xl">
+              <div class="flex items-start gap-2.5">
+                <svg class="w-5 h-5 text-red-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                <div>
+                  <h4 class="font-bold text-red-800 text-sm">データの自動アップロードに失敗しました</h4>
+                  <p class="text-xs text-red-700 mt-1">ネットワーク制限などの理由により自動送信がブロックされました。お手数ですが、一番下にある「コピーボタン」からデータを取得して手動でご提出ください。</p>
+                </div>
+              </div>
             </div>
+          `;
+        } else {
+          alertBanner = `
+            <div class="mb-6 p-4 bg-emerald-50 border-l-4 border-emerald-500 rounded-r-xl">
+              <div class="flex items-start gap-2.5">
+                <svg class="w-5 h-5 text-emerald-600 mt-0.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                <div>
+                  <h4 class="font-bold text-emerald-800 text-sm">データは正常に自動同期されました！</h4>
+                  <p class="text-xs text-emerald-700 mt-1">送信完了しました。念のためコピーデータを保存しておくことをおすすめします。</p>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="text-left bg-white p-5 sm:p-8 rounded-3xl shadow-xl border border-slate-200 max-w-3xl mx-auto space-y-6 my-2">
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-center text-slate-800 tracking-tight">
+              テストが終了しました！
+            </h2>
             
-            <p class="text-slate-600 text-sm mb-6 leading-relaxed">
-              テストが正常に終了しました。データはスプレッドシートに自動的に送信されました。<br>
-              調整後の長さが <strong>200 px（基準線の長さ）</strong> に近いほど錯視の影響が少なく、乖離が大きいほど錯視の影響を強く受けていることを意味します。一般的に、角度が鋭く、羽が長いほど錯視量が大きくなります。
+            <div class="text-center text-sm font-mono text-slate-500 bg-slate-50 py-2.5 px-4 rounded-xl border border-slate-100 inline-block w-full">
+              対象者ID: <span class="font-bold text-indigo-600">${studentId}</span>
+            </div>
+
+            ${alertBanner}
+            
+            <p class="text-slate-600 text-xs sm:text-sm leading-relaxed">
+              <strong>【結果の解説】</strong><br>
+              調整後の長さが <strong>200 px（基準線の長さ）</strong> に近いほど錯視の影響が少なく、乖離が大きいほど錯視の影響を強く受けていることを意味します。一般的に、角度が鋭く（15°）、羽が長い（50px）ほど、内向き矢羽を実際より過小評価し、比較する外向き矢羽を長く調整しやすくなるため、錯視量（差分）がプラスに大きくなる傾向にあります。
             </p>
 
-            <h3 class="text-lg font-bold text-slate-800 mb-3">条件別の平均結果</h3>
-            <div class="overflow-hidden rounded-xl border border-slate-200 mb-8 shadow-sm">
+            <!-- グラフ描画エリア -->
+            <div class="bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-150">
+              <h3 class="text-xs sm:text-sm font-bold text-slate-700 mb-3 text-center">条件別 錯視量（平均の差分）グラフ</h3>
+              <div class="relative w-full h-48 sm:h-64">
+                <canvas id="analysis-chart"></canvas>
+              </div>
+            </div>
+
+            <h3 class="text-base sm:text-lg font-bold text-slate-800 pt-2">数値結果データ (横スワイプでスクロール可能)</h3>
+            
+            <!-- 横スクロール可能コンテナ -->
+            <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
               <table class="min-w-full divide-y divide-slate-200">
                 <thead class="bg-slate-50">
                   <tr>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">条件 (矢羽角度 / 羽長)</th>
-                    <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">標準刺激(固定)</th>
-                    <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">調整平均値</th>
-                    <th class="px-6 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">錯視量 (差分)</th>
+                    <th class="px-3 sm:px-5 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">条件 (矢羽角度 / 羽長)</th>
+                    <th class="px-3 sm:px-5 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">標準刺激</th>
+                    <th class="px-3 sm:px-5 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">調整平均値</th>
+                    <th class="px-3 sm:px-5 py-3 text-center text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">錯視量 (差分)</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100 bg-white">
@@ -479,41 +565,117 @@
               </table>
             </div>
 
-            <div class="mb-6">
-              <label class="block text-sm font-bold text-slate-700 mb-2">送信済みのRAWデータ (CSV形式)</label>
-              <textarea readonly class="w-full h-32 p-3 text-xs font-mono text-slate-700 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500" id="csv-area">${csvContent}</textarea>
-              <button onclick="copyCSV()" class="mt-2 w-full py-2 bg-slate-100 text-slate-700 hover:bg-slate-200 rounded-lg text-sm font-semibold transition active:scale-95 shadow-sm">
+            <div class="border-t border-slate-100 pt-6 mb-12">
+              <label class="block text-xs sm:text-sm font-bold text-slate-700 mb-2">RAWデータ (CSV形式)</label>
+              <textarea readonly class="w-full h-28 p-3 text-xs font-mono text-slate-600 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500" id="csv-area">${csvContent}</textarea>
+              <button onclick="copyCSV(this)" class="mt-3 w-full py-4 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 active:bg-indigo-200 rounded-xl text-sm font-bold transition duration-200 shadow-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
                 CSVデータをクリップボードにコピー
               </button>
             </div>
-
-            <p class="text-xs text-center text-slate-400">
-              ※予備のため、念のため上記のデータを手元に保存しておくことをお勧めします。
-            </p>
           </div>
         `;
       },
-      choices: ['NO_KEYS'] // 終了画面のためキー入力による進行を無効化
+      choices: ['NO_KEYS'],
+      on_load: function() {
+        const rawTrials = jsPsych.data.get().filter({trial_type: 'html-button-response'}).values();
+        const trials = rawTrials.slice(1);
+
+        // チャートのデータ集計
+        const summary = {};
+        conditions.forEach(cond => {
+          const key = `角度${cond.shaft_angle}°/羽${cond.fin_length}px`;
+          summary[key] = { sum: 0, count: 0 };
+        });
+
+        trials.forEach(t => {
+          const key = `角度${t.angle}°/羽${t.wing_length}px`;
+          if (summary[key]) {
+            summary[key].sum += t.pse;
+            summary[key].count += 1;
+          }
+        });
+
+        const labels = Object.keys(summary);
+        const dataValues = labels.map(key => {
+          const avg = summary[key].count > 0 ? (summary[key].sum / summary[key].count) : 200;
+          return parseFloat((avg - 200).toFixed(1));
+        });
+
+        // Chart.jsによる美しい棒グラフ生成
+        const chartCanvas = document.getElementById('analysis-chart');
+        if (chartCanvas) {
+          const ctx = chartCanvas.getContext('2d');
+          new Chart(ctx, {
+            type: 'bar',
+            data: {
+              labels: labels,
+              datasets: [{
+                label: '錯視量（px）',
+                data: dataValues,
+                backgroundColor: dataValues.map(val => val >= 0 ? 'rgba(244, 63, 94, 0.65)' : 'rgba(59, 130, 246, 0.65)'),
+                borderColor: dataValues.map(val => val >= 0 ? '#f43f5e' : '#3b82f6'),
+                borderWidth: 2,
+                borderRadius: 8,
+                barThickness: window.innerWidth < 640 ? 18 : 32, // モバイルでは細くして見やすく
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: {
+                  callbacks: {
+                    label: function(context) {
+                      return `錯視量: ${context.raw > 0 ? '+' : ''}${context.raw} px`;
+                    }
+                  }
+                }
+              },
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: { display: true, text: '錯視量(px)', font: { weight: 'bold', size: window.innerWidth < 640 ? 10 : 12 } },
+                  grid: { color: 'rgba(0, 0, 0, 0.05)' },
+                  labels: { font: { size: 10 } }
+                },
+                x: {
+                  grid: { display: false },
+                  ticks: {
+                    font: { size: window.innerWidth < 640 ? 8 : 10 },
+                    maxRotation: 45,
+                    minRotation: 15
+                  }
+                }
+              }
+            }
+          });
+        }
+      }
     };
     timeline.push(results_screen);
 
+    // --- STREAMING_CHUNK: Setting up copy handler... ---
     // コピー処理の実装
-    window.copyCSV = function() {
+    window.copyCSV = function(element) {
       const copyText = document.getElementById("csv-area");
       copyText.select();
-      copyText.setSelectionRange(0, 99999); // モバイル対応
+      copyText.setSelectionRange(0, 99999); // モバイルブラウザ対応
       document.execCommand("copy");
       
-      // ボタンのテキストフィードバック
-      const btn = event.target;
-      const originalText = btn.innerText;
-      btn.innerText = "コピーしました！";
-      btn.classList.add("bg-emerald-500", "text-white");
-      btn.classList.remove("bg-slate-100", "text-slate-700");
+      const originalText = element.innerHTML;
+      element.innerHTML = `
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path></svg>
+        コピー完了しました！
+      `;
+      element.classList.remove("bg-indigo-50", "text-indigo-700");
+      element.classList.add("bg-emerald-500", "text-white");
+
       setTimeout(() => {
-        btn.innerText = originalText;
-        btn.classList.remove("bg-emerald-500", "text-white");
-        btn.classList.add("bg-slate-100", "text-slate-700");
+        element.innerHTML = originalText;
+        element.classList.remove("bg-emerald-500", "text-white");
+        element.classList.add("bg-indigo-50", "text-indigo-700");
       }, 2000);
     };
 
