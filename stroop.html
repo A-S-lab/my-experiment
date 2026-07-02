@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stroop Task</title>
+    <title>Stroop Task (Mobile Support)</title>
     <!-- jsPsych本体とCSS -->
     <script src="https://unpkg.com/jspsych@7.3.4"></script>
     <link rel="stylesheet" href="https://unpkg.com/jspsych@7.3.4/css/jspsych.css">
@@ -29,17 +29,19 @@
 
         /* 刺激（文字）のスタイル */
         .stimulus-text {
-            font-size: 60px;
+            font-size: 64px;
             font-weight: bold;
             display: block;
+            margin-bottom: 30px;
         }
 
         /* 教示テキストのスタイル */
         .instructions-text {
-            font-size: 24px;
+            font-size: 22px;
             line-height: 1.8;
             text-align: center;
             color: #000000; /* 教示は常に黒 */
+            padding: 15px;
         }
 
         /* 注視点 (+) のスタイル */
@@ -65,6 +67,22 @@
             display: flex;
             align-items: center;
             justify-content: center;
+        }
+
+        /* スマホ対応：誤タップや自動選択を防止するCSS */
+        button, .stimulus-text, .instructions-text, .fixation-text {
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
+
+        /* レスポンシブ対応：ボタンがはみ出さないようにラップする */
+        .jspsych-btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -147,24 +165,42 @@
             type: jsPsychHtmlButtonResponse,
             stimulus: '<p class="instructions-text">ストループ課題を開始します。</p>',
             choices: ['実験を開始する'],
-            button_html: '<button class="jspsych-btn" style="font-size: 20px; padding: 10px 20px; border-radius: 8px;">%choice%</button>'
+            button_html: '<button class="jspsych-btn" style="font-size: 20px; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer;">%choice%</button>'
         };
         timeline.push(start_button);
 
-        // 3. 教示画面
+        // 3. 教示画面 (モバイル対応のため、スペースキー以外に「実験を始める」ボタンも用意)
         const instructions = {
-            type: jsPsychHtmlKeyboardResponse,
+            type: jsPsychHtmlButtonResponse,
             stimulus: `
                 <div class="instructions-text">
-                    <p>表示される文字の「色」をキーボードで答えてください。</p>
-                    <p>赤色の文字なら <strong>'r'</strong> キー</p>
-                    <p>青色の文字なら <strong>'b'</strong> キー</p>
-                    <p>緑色の文字なら <strong>'g'</strong> キー</p>
+                    <p>表示される文字の「色」を答えてください。</p>
+                    <p>赤色の文字なら <strong style="color: #e53935;">'R' (赤)</strong> ボタン、またはキーボードの <strong>'r'</strong></p>
+                    <p>青色の文字なら <strong style="color: #1e88e5;">'B' (青)</strong> ボタン、またはキーボード of <strong>'b'</strong></p>
+                    <p>緑色の文字なら <strong style="color: #43a047;">'G' (緑)</strong> ボタン、またはキーボード of <strong>'g'</strong></p>
                     <br>
-                    <p>スペースキーを押すと最初の試行が始まります。</p>
+                    <p>下のボタンをタップするか、スペースキーを押すと実験が始まります。</p>
                 </div>
             `,
-            choices: [' '], // スペースキー
+            choices: ['実験を始める'],
+            button_html: '<button class="jspsych-btn" id="btn-start-task" style="font-size: 20px; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; background-color: #333; color: white; border: none;">%choice%</button>',
+            on_load: function() {
+                // PC参加者のために、スペースキーが押された際も進めるよう処理を追加
+                const handle_space = function(e) {
+                    if (e.key === ' ' || e.code === 'Space') {
+                        const startBtn = document.getElementById('btn-start-task');
+                        if (startBtn) startBtn.click();
+                    }
+                };
+                document.addEventListener('keydown', handle_space);
+                window.active_instructions_listener = handle_space;
+            },
+            on_finish: function() {
+                if (window.active_instructions_listener) {
+                    document.removeEventListener('keydown', window.active_instructions_listener);
+                    window.active_instructions_listener = null;
+                }
+            },
             post_trial_gap: 500
         };
         timeline.push(instructions);
@@ -172,7 +208,7 @@
         // 4. 実験試行ループ
         test_trials_data.forEach((trial_info) => {
             
-            // a. 注視点 (+) 500ms
+            // a. 注注視点 (+) 500ms
             const fixation = {
                 type: jsPsychHtmlKeyboardResponse,
                 stimulus: '<div class="fixation-text">+</div>',
@@ -181,12 +217,35 @@
                 data: { task: 'fixation' }
             };
 
-            // b. 刺激提示 (キー入力があるまで無限に表示)
+            // b. 刺激提示 (キー入力、または画面上のボタンタップがあるまで無限に表示)
             const stimulus = {
-                type: jsPsychHtmlKeyboardResponse,
+                type: jsPsychHtmlButtonResponse,
                 stimulus: `<div class="stimulus-text" style="color: ${trial_info.color};">${trial_info.word}</div>`,
-                choices: ['r', 'b', 'g'],
-                trial_duration: null,
+                choices: ['R', 'B', 'G'],
+                // 各ボタンのHTMLテンプレートを静的配列として指定 (jsPsych v7の最適解)
+                button_html: [
+                    `<button class="jspsych-btn touch-button" id="btn-r" 
+                        style="font-size: 22px; padding: 16px 28px; margin: 8px; border-radius: 12px; 
+                        background-color: #e53935; color: white; border: none; font-weight: bold; 
+                        min-width: 100px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); cursor: pointer; 
+                        -webkit-tap-highlight-color: transparent;">
+                        赤 (R)
+                    </button>`,
+                    `<button class="jspsych-btn touch-button" id="btn-b" 
+                        style="font-size: 22px; padding: 16px 28px; margin: 8px; border-radius: 12px; 
+                        background-color: #1e88e5; color: white; border: none; font-weight: bold; 
+                        min-width: 100px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); cursor: pointer; 
+                        -webkit-tap-highlight-color: transparent;">
+                        青 (B)
+                    </button>`,
+                    `<button class="jspsych-btn touch-button" id="btn-g" 
+                        style="font-size: 22px; padding: 16px 28px; margin: 8px; border-radius: 12px; 
+                        background-color: #43a047; color: white; border: none; font-weight: bold; 
+                        min-width: 100px; box-shadow: 0 4px 6px rgba(0,0,0,0.15); cursor: pointer; 
+                        -webkit-tap-highlight-color: transparent;">
+                        緑 (G)
+                    </button>`
+                ],
                 data: {
                     task: 'response',
                     word: trial_info.word,
@@ -194,10 +253,40 @@
                     condition: trial_info.condition,
                     correct_answer: trial_info.correct_response
                 },
+                on_load: function() {
+                    // PCのキーボード操作に対応するためのフォールバック処理
+                    const handle_keydown = function(e) {
+                        const key = e.key.toLowerCase();
+                        if (key === 'r') {
+                            const btn = document.getElementById('btn-r');
+                            if (btn) btn.click();
+                        } else if (key === 'b') {
+                            const btn = document.getElementById('btn-b');
+                            if (btn) btn.click();
+                        } else if (key === 'g') {
+                            const btn = document.getElementById('btn-g');
+                            if (btn) btn.click();
+                        }
+                    };
+                    document.addEventListener('keydown', handle_keydown);
+                    window.active_stroop_listener = handle_keydown;
+                },
                 on_finish: function(data) {
-                    // キーの比較判定
-                    const is_correct = jsPsych.pluginAPI.compareKeys(data.response, data.correct_answer);
-                    // 要件: 正解なら "true"、不正解なら "false" という文字列を確実に格納する
+                    // リスナーのクリーンアップ
+                    if (window.active_stroop_listener) {
+                        document.removeEventListener('keydown', window.active_stroop_listener);
+                        window.active_stroop_listener = null;
+                    }
+
+                    // jsPsychHtmlButtonResponseでは、data.responseは押されたボタンのインデックス（0 = R, 1 = B, 2 = G）
+                    // 既存の集計用CSVとの一貫性を保つため、キー入力相当の値（'r', 'b', 'g'）に変換して記録
+                    const response_map = {0: 'r', 1: 'b', 2: 'g'};
+                    const actual_response = response_map[data.response];
+                    
+                    data.response = actual_response; // data.responseをキーの値に書き換える
+
+                    // 正誤の比較判定
+                    const is_correct = (actual_response === data.correct_answer);
                     data.correct = is_correct ? "true" : "false";
                 }
             };
