@@ -11,23 +11,19 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; }
-        
         .jspsych-btn {
             padding: 1.25rem 2.5rem !important;
             font-size: 1.1rem !important;
             font-weight: 600 !important;
             border-radius: 9999px !important;
-            transition: none !important; 
+            transition: all 0.2s ease !important;
             border: 2px solid #4f46e5 !important;
             background: white !important;
             color: #4f46e5 !important;
-            outline: none !important;
         }
-        .jspsych-btn:active { transform: none !important; background: #e0e7ff !important; }
-        
+        .btn-active { background: #4f46e5 !important; color: white !important; transform: scale(0.95); }
         .stimulus { font-size: 100px; font-weight: 800; color: #1e293b; }
         .jspsych-content { max-width: 600px !important; }
-        
         @media (max-width: 640px) { 
             .stimulus { font-size: 70px; } 
             .jspsych-btn { padding: 1rem 1.5rem !important; font-size: 0.9rem !important; }
@@ -38,48 +34,69 @@
     <div id="jspsych-target" class="flex justify-center items-center min-h-screen"></div>
 
     <script>
-        const jsPsych = initJsPsych({
-            display_element: 'jspsych-target',
-            on_finish: function() {
-                // 送信中メッセージ表示
-                document.getElementById('jspsych-target').innerHTML = `
-                    <div class="text-center p-10 bg-white rounded-3xl shadow-xl">
-                        <div class="text-2xl font-bold mb-4">データを送信中です...</div>
-                    </div>
-                `;
+        const GAS_URL = 'https://script.google.com/macros/s/AKfycbyANUmnrEzo_mpo2hK4caNPl5m2-8cXwzmZ6JWe3FSETnBkLmGr1SHyZMbd-wZPiqHBXA/exec';
 
-                // データ送信
-                const data = jsPsych.data.get().filter({task: 'task_trial'}).values();
-                const GAS_URL = 'https://script.google.com/macros/s/AKfycbz1NUdnuIk_IIxreQdpPrauaTBcUjTt3kk9oaRgxo2hdyQKNAZKZa7GMrIEUIip_ETpkw/exec';
-                
-                fetch(GAS_URL, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    cache: 'no-cache',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                }).finally(() => {
-                    displayFeedback(true); // 送信完了メッセージ付きで表示
-                });
-            }
-        });
-
-        function generateSequence(n, total, matchCount) {
+        // 厳密な配列生成（1-Back/2-Back共通）
+        function prepareSequence(n, total, matchCount) {
             const letters = ['A', 'B', 'C', 'D', 'E'];
             let sequence = [];
-            for(let i=0; i<n; i++) sequence.push(letters[Math.floor(Math.random() * letters.length)]);
-            let conditions = new Array(matchCount).fill('match').concat(new Array((total - n) - matchCount).fill('mismatch'));
+            for(let i=0; i<n; i++) sequence.push({letter: letters[Math.floor(Math.random() * letters.length)], isMatch: false});
+            
+            let conditions = new Array(matchCount).fill(true).concat(new Array((total - n) - matchCount).fill(false));
             conditions.sort(() => Math.random() - 0.5);
+
             for (let i = n; i < total; i++) {
-                if (conditions[i - n] === 'match') {
-                    sequence.push(sequence[i - n]);
+                const isMatch = conditions[i - n];
+                let nextLetter;
+                if (isMatch) {
+                    nextLetter = sequence[i - n].letter;
                 } else {
-                    let candidates = letters.filter(l => l !== sequence[i - n]);
-                    sequence.push(candidates[Math.floor(Math.random() * candidates.length)]);
+                    let candidates = letters.filter(l => l !== sequence[i - n].letter);
+                    nextLetter = candidates[Math.floor(Math.random() * candidates.length)];
                 }
+                sequence.push({letter: nextLetter, isMatch: isMatch});
             }
             return sequence;
         }
+
+        const seq1Data = prepareSequence(1, 20, 6);
+        const seq2Data = prepareSequence(2, 20, 6);
+
+        const jsPsych = initJsPsych({
+            display_element: 'jspsych-target',
+            on_finish: function() {
+                const display = jsPsych.getDisplayElement();
+                display.innerHTML = '<div class="text-center p-10"><div class="animate-pulse text-indigo-600 font-bold text-2xl">データを送信中です...</div></div>';
+
+                const allData = jsPsych.data.get().filter({task: 'task_trial'}).values();
+                const pInfo = jsPsych.data.get().filter({trial_type: 'survey-text'}).values()[0] || {response: {participant_id: 'unknown', age: 'unknown'}};
+                
+                const payload = allData.map(d => ({
+                    participant_id: pInfo.response.participant_id,
+                    age: pInfo.response.age,
+                    date: new Date().toLocaleDateString('ja-JP'),
+                    condition: d.condition,
+                    trial_index: d.trial_index + 1,
+                    stimulus: d.stimulus,
+                    user_answer: d.user_answer,
+                    is_match: d.is_match,
+                    correct: d.correct,
+                    rt: d.rt ? Math.round(d.rt) : null
+                }));
+
+                // 正しいJSON構文で送信処理を実行
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(() => {
+                    displayFeedback();
+                }).catch(() => {
+                    displayFeedback(); // 失敗しても表示は行う
+                });
+            }
+        });
 
         const participant_info = {
             type: jsPsychSurveyText,
@@ -90,7 +107,7 @@
             button_label: '実験を開始する'
         };
 
-        function createTrial(letter, index, isMatch, condition) {
+        function createTrial(obj, index, condition) {
             return {
                 type: jsPsychHtmlButtonResponse,
                 stimulus: `
@@ -100,37 +117,54 @@
                             <span>(F) 同じ</span> <span>(J) 違う</span>
                         </div>
                     </div>
-                    <div class="stimulus my-12">${letter}</div>
+                    <div class="stimulus my-12">${obj.letter}</div>
                 `,
                 choices: ['同じ', '違う'],
                 stimulus_duration: 500,
                 trial_duration: 2000,
                 response_ends_trial: false,
-                data: { task: 'task_trial', trial_index: index, stimulus: letter, condition: condition, is_match: isMatch },
+                data: { task: 'task_trial', trial_index: index, stimulus: obj.letter, condition: condition, is_match: obj.isMatch },
                 on_load: function() {
+                    const buttons = document.querySelectorAll('.jspsych-btn');
                     const listener = function(e) {
-                        if(e.key.toLowerCase() === 'f') { jsPsych.finishTrial({response: 0}); }
-                        else if(e.key.toLowerCase() === 'j') { jsPsych.finishTrial({response: 1}); }
+                        if (buttons[0].disabled) return;
+                        if(e.key.toLowerCase() === 'f') { buttons[0].click(); }
+                        else if(e.key.toLowerCase() === 'j') { buttons[1].click(); }
                     };
-                    document.addEventListener('keydown', listener, {once: true});
+                    document.addEventListener('keydown', listener);
+                    
+                    buttons.forEach((btn, idx) => {
+                        btn.addEventListener('click', () => {
+                            buttons.forEach(b => { b.disabled = true; });
+                            btn.classList.add('btn-active');
+                            document.removeEventListener('keydown', listener);
+                        });
+                    });
                 },
                 on_finish: function(data) {
-                    const userMatch = (data.response === 0);
-                    data.correct = (userMatch === isMatch);
+                    if (data.response !== null) {
+                        const userMatch = (data.response === 0);
+                        data.correct = (userMatch === data.is_match);
+                        data.user_answer = userMatch ? '同じ' : '違う';
+                    } else {
+                        data.correct = null;
+                        data.user_answer = '-';
+                    }
                 }
             };
         }
 
-        function displayFeedback(isSent = false) {
+        function displayFeedback() {
             const data = jsPsych.data.get().filter({task: 'task_trial'}).values();
             const getAccuracy = (cond) => {
                 const d = data.filter(x => x.condition === cond);
-                return d.length > 0 ? ((d.filter(x => x.correct).length / d.length) * 100).toFixed(1) : "0.0";
+                const answered = d.filter(x => x.correct !== null);
+                return answered.length > 0 ? ((answered.filter(x => x.correct === true).length / answered.length) * 100).toFixed(1) : "0.0";
             };
 
             let html = `
                 <div class="p-8 w-full max-w-5xl bg-white rounded-3xl shadow-xl overflow-hidden">
-                    ${isSent ? '<div class="text-center font-bold text-lg text-indigo-600 mb-6">実験終了。ご協力ありがとうございました。</div>' : ''}
+                    <div class="text-center font-bold text-lg text-indigo-600 mb-6">実験終了。ご協力ありがとうございました。</div>
                     <h2 class="text-3xl font-bold mb-4">実験結果</h2>
                     <div class="flex gap-6 mb-6">
                         <div class="p-4 bg-indigo-50 rounded-xl">1-Back 正答率: <b>${getAccuracy('1-back')}%</b></div>
@@ -139,34 +173,35 @@
                     <div class="max-h-[50vh] overflow-y-auto border rounded-xl">
                         <table class="w-full text-left border-collapse text-sm">
                             <thead class="bg-slate-50 sticky top-0">
-                                <tr><th class="p-3">条件</th><th class="p-3">試行</th><th class="p-3">文字</th><th class="p-3">正誤</th><th class="p-3">反応時間(ms)</th></tr>
+                                <tr><th class="p-3">条件</th><th class="p-3">試行</th><th class="p-3">提示</th><th class="p-3">回答</th><th class="p-3">正誤</th><th class="p-3">RT(ms)</th></tr>
                             </thead>
                             <tbody>
             `;
             data.forEach((d) => {
+                const status = d.correct === null ? '-' : (d.correct ? '○' : '×');
                 html += `
                     <tr class="border-b">
                         <td class="p-3">${d.condition}</td>
                         <td class="p-3">${d.trial_index + 1}</td>
                         <td class="p-3 font-bold text-lg">${d.stimulus}</td>
-                        <td class="p-3">${d.correct ? '○' : '×'}</td>
+                        <td class="p-3">${d.user_answer}</td>
+                        <td class="p-3">${status}</td>
                         <td class="p-3">${d.rt ? Math.round(d.rt) : '-'}</td>
                     </tr>
                 `;
             });
-            html += `</tbody></table></div><div class="mt-8 text-center"><button onclick="location.reload()" class="bg-indigo-600 text-white px-8 py-3 rounded-full font-bold">最初からやり直す</button></div></div>`;
+            html += `</tbody></table></div></div>`;
             document.getElementById('jspsych-target').innerHTML = html;
         }
 
         const timeline = [participant_info, 
             { type: jsPsychInstructions, pages: ['1-Back課題：直前と同じなら「同じ」を押してください'], show_clickable_nav: true }
         ];
-        
-        generateSequence(1, 20, 6).forEach((l, i) => timeline.push(createTrial(l, i, (i>0 && l===generateSequence(1,20,6)[i-1]), '1-back')));
+        seq1Data.forEach((obj, i) => timeline.push(createTrial(obj, i, '1-back')));
         
         timeline.push({ type: jsPsychHtmlButtonResponse, stimulus: '前半終了。休憩して準備ができたら2-Backへ', choices: ['2-Backを開始する'] });
         
-        generateSequence(2, 20, 6).forEach((l, i) => timeline.push(createTrial(l, i, (i>1 && l===generateSequence(2,20,6)[i-2]), '2-back')));
+        seq2Data.forEach((obj, i) => timeline.push(createTrial(obj, i, '2-back')));
         
         jsPsych.run(timeline);
     </script>
