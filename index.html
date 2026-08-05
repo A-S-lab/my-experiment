@@ -42,7 +42,6 @@
 </head>
 <body class="bg-gray-50 text-gray-900 dark:bg-gray-950 dark:text-gray-100 min-h-screen dark-mode-bg">
 
-    <!-- Theme Toggle -->
     <div class="fixed top-6 right-6 z-50">
         <button onclick="toggleTheme()" class="p-3 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur shadow-lg border border-gray-200 dark:border-gray-700 hover:scale-110 transition-transform">
             <span id="sun-icon" class="hidden dark:block text-orange-400">☀️</span>
@@ -90,7 +89,6 @@
             </div>
         </section>
 
-        <!-- Experiment Grid -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             
             <!-- Experiment 0 -->
@@ -105,16 +103,25 @@
                 </a>
             </div>
 
-            <!-- Experiment 1 -->
+            <!-- Experiment 1 (Stroop with Report Buttons Added) -->
             <div class="experiment-card bg-white dark:bg-gray-900 p-8 rounded-3xl border border-gray-100 dark:border-gray-800 shadow-sm text-gray-900 dark:text-gray-100">
                 <span class="text-[10px] font-bold text-accent tracking-[0.2em] uppercase mb-2 block">Experimental 1</span>
                 <h2 class="text-xl font-medium mb-3 text-gray-900 dark:text-gray-100">ストループ課題</h2>
-                <p class="text-gray-500 dark:text-gray-400 text-sm mb-8 min-h-[48px] font-light leading-relaxed">
+                <p class="text-gray-500 dark:text-gray-400 text-sm mb-6 min-h-[48px] font-light leading-relaxed">
                     「文字の意味」と「文字の色」の干渉を調べる、簡単なキーボード入力のテストです。（所要：約3分）
                 </p>
-                <a href="https://A-S-Lab.github.io/my-experiment/stroop.html" target="_blank" rel="noopener noreferrer" class="block w-full text-center border border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100 hover:bg-gray-900 dark:hover:bg-gray-100 hover:text-white dark:hover:text-gray-900 transition-all py-3.5 rounded-xl text-xs font-medium tracking-widest uppercase">
+                
+                <!-- Main Action -->
+                <a href="https://A-S-Lab.github.io/my-experiment/stroop.html" target="_blank" rel="noopener noreferrer" class="block w-full text-center border border-gray-900 dark:border-gray-100 text-gray-900 dark:text-gray-100 hover:bg-gray-900 dark:hover:bg-gray-100 hover:text-white dark:hover:text-gray-900 transition-all py-3.5 rounded-xl text-xs font-medium tracking-widest uppercase mb-3">
                     参加する
                 </a>
+
+                <!-- Report Actions -->
+                <div class="flex gap-2">
+                    <a href="https://a-s-lab.github.io/my-experiment/my_presentation.html#/title-slide" target="_blank" rel="noopener noreferrer" class="flex-1 text-center border border-gray-200 dark:border-gray-700 hover:border-accent text-gray-600 dark:text-gray-300 hover:text-accent transition-all py-2 rounded-lg text-[10px] font-medium tracking-wider">
+                        プレゼンテーションを見る
+                    </a>
+                </div>
             </div>
 
             <!-- Experiment 2 -->
