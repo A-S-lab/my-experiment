@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Shift Organizer - シフト自動整理ツール</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & Noto Sans JP -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Noto Sans JP', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* カスタムスクロールバー */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .fade-in {
+            animation: fadeIn 0.25s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- ヘッダー -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md shadow-indigo-200">
+                    <i class="fa-solid fa-calendar-check text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg sm:text-xl font-bold text-slate-900 tracking-tight">Shift Organizer</h1>
+                    <p class="text-xs text-slate-500 hidden sm:block">名前と日付から「誰が・いつ・何時に入れるか」を自動整理</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <button onclick="loadSampleData()" class="text-xs sm:text-sm bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-3 rounded-lg transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-wand-magic-sparkles text-indigo-600"></i>
+                    <span>サンプル読込</span>
+                </button>
+                <button onclick="exportCSV()" class="text-xs sm:text-sm bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2 px-3 rounded-lg shadow-sm transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-download"></i>
+                    <span class="hidden sm:inline">CSV出力</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- 左カラム：データ入力・読み込みエリア -->
+        <div class="lg:col-span-4 space-y-6">
+            
+            <!-- 1. テキスト一括貼り付けカード -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-paste text-indigo-600"></i>
+                        シフト一括読み込み
+                    </h2>
+                    <span class="text-xs bg-indigo-50 text-indigo-700 font-medium px-2.5 py-0.5 rounded-full">おすすめ</span>
+                </div>
+                <p class="text-xs text-slate-500 mb-3 leading-relaxed">
+                    LINEの文章・箇条書き・複数日まとめなど、どんな形式でもそのまま貼り付けてOK！文脈から名前・日付・時間を自動抽出します。
+                </p>
+                
+                <textarea id="bulkInput" rows="6" class="w-full rounded-xl border border-slate-300 p-3 text-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition bg-slate-50 focus:bg-white" placeholder="どんな文章でもOKです！例：
+お疲れ様です！佐藤です。
+・12/1 9時〜14時
+・12/2 終日入れます！
+12/3 鈴木 17:00-22:00 / 12/4 10-15時"></textarea>
+                
+                <div class="mt-3 flex flex-col sm:flex-row gap-2">
+                    <button onclick="parseBulkText()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 px-4 rounded-xl shadow-sm shadow-indigo-200 transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bolt"></i>
+                        <span>解析してシフトに反映</span>
+                    </button>
+                    <button onclick="document.getElementById('bulkInput').value=''" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium py-2.5 px-3 rounded-xl transition text-sm">
+                        クリア
+                    </button>
+                </div>
+
+                <!-- CSVアップロード -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <label class="flex items-center justify-center w-full px-4 py-2.5 bg-slate-50 text-slate-600 rounded-xl border border-dashed border-slate-300 cursor-pointer hover:bg-slate-100 hover:border-indigo-400 transition text-xs font-medium gap-2">
+                        <i class="fa-solid fa-file-csv text-base text-emerald-600"></i>
+                        <span>CSVファイルから読み込む</span>
+                        <input type="file" id="csvFileInput" accept=".csv,.txt" class="hidden" onchange="handleFileUpload(event)">
+                    </label>
+                </div>
+            </div>
+
+            <!-- 2. 個別追加フォームカード -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+                <h2 class="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <i class="fa-solid fa-user-plus text-indigo-600"></i>
+                    1件ずつ追加・登録
+                </h2>
+                <form id="singleAddForm" onsubmit="addSingleShift(event)" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">名前 <span class="text-rose-500">*</span></label>
+                        <input type="text" id="inputName" required placeholder="例：山田 太郎" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">日付 <span class="text-rose-500">*</span></label>
+                            <input type="date" id="inputDate" required class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 mb-1">時間帯・シフト区分</label>
+                            <input type="text" id="inputLocation" list="timeSuggestions" placeholder="例：10:00-15:00 / 終日" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <datalist id="timeSuggestions">
+                                <option value="9:00-14:00">
+                                <option value="10:00-15:00">
+                                <option value="13:00-18:00">
+                                <option value="17:00-22:00">
+                                <option value="18:00-23:00">
+                                <option value="終日OK">
+                                <option value="早番">
+                                <option value="遅番">
+                            </datalist>
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 px-4 rounded-xl transition text-sm mt-2 flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>リストに追加</span>
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+        <!-- 右カラム：整理結果・スケジュール表示エリア -->
+        <div class="lg:col-span-8 flex flex-col space-y-4">
+            
+            <!-- サマリー＆コントロールバー -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <!-- 統計バッジ -->
+                <div class="flex items-center gap-3 sm:gap-4">
+                    <div class="bg-indigo-50 px-3.5 py-2 rounded-xl">
+                        <span class="text-xs text-indigo-600 font-medium block">登録スタッフ</span>
+                        <span id="statPeople" class="text-lg font-bold text-indigo-900">0名</span>
+                    </div>
+                    <div class="bg-emerald-50 px-3.5 py-2 rounded-xl">
+                        <span class="text-xs text-emerald-600 font-medium block">稼働日数</span>
+                        <span id="statDays" class="text-lg font-bold text-emerald-900">0日</span>
+                    </div>
+                    <div class="bg-amber-50 px-3.5 py-2 rounded-xl">
+                        <span class="text-xs text-amber-600 font-medium block">時間未定</span>
+                        <span id="statUnassigned" class="text-lg font-bold text-amber-900">0件</span>
+                    </div>
+                </div>
+
+                <!-- フィルター＆全削除 -->
+                <div class="flex items-center gap-2">
+                    <div class="relative flex-grow sm:flex-grow-0">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                        <input type="text" id="searchFilter" oninput="renderAll()" placeholder="名前・時間で絞り込み..." class="w-full sm:w-48 pl-8 pr-3 py-2 text-xs rounded-xl border border-slate-300 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <button onclick="confirmClearAll()" title="全データを削除" class="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- ビュー切り替えタブ -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex-grow flex flex-col">
+                <div class="border-b border-slate-200 px-4 pt-3 flex space-x-2 bg-slate-50/50 overflow-x-auto">
+                    <button onclick="switchTab('timeline')" id="tab-timeline" class="tab-btn active px-4 py-2.5 text-sm font-bold border-b-2 border-indigo-600 text-indigo-600 whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-chart-gantt"></i>
+                        <span>タイムバー表（1時間刻み）</span>
+                    </button>
+                    <button onclick="switchTab('matrix')" id="tab-matrix" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-table-cells"></i>
+                        <span>シフトマトリクス表</span>
+                    </button>
+                    <button onclick="switchTab('byDate')" id="tab-byDate" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-clock"></i>
+                        <span>日付別（何時に誰が入れるか）</span>
+                    </button>
+                    <button onclick="switchTab('byPerson')" id="tab-byPerson" class="tab-btn px-4 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap flex items-center gap-2">
+                        <i class="fa-solid fa-users"></i>
+                        <span>担当者別一覧</span>
+                    </button>
+                </div>
+
+                <!-- コンテンツ表示領域 -->
+                <div id="viewContainer" class="p-5 flex-grow overflow-auto">
+                    <!-- JavaScriptで動的に描画 -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 時間帯編集モーダル -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-lg text-slate-800">入り可能時間の割り当て・編集</h3>
+                <button onclick="closeModal()" class="text-slate-400 hover:text-slate-600 p-1">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div id="modalInfo" class="bg-slate-50 p-3 rounded-xl mb-4 text-sm text-slate-700 border border-slate-200">
+                <!-- 対象者・日付情報 -->
+            </div>
+            <div class="space-y-3">
+                <label class="block text-xs font-bold text-slate-600">時間帯を選択または入力</label>
+                <div class="flex flex-wrap gap-2 mb-2" id="quickLocationButtons">
+                    <!-- 既存の時間帯ボタンが並ぶ -->
+                </div>
+                <input type="text" id="modalLocationInput" placeholder="新しい時間帯を入力（例：10:00-15:00、18時〜）" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+            </div>
+            <div class="mt-6 flex justify-between items-center">
+                <button onclick="deleteCurrentShift()" class="text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-xl text-sm font-medium transition">
+                    <i class="fa-solid fa-trash mr-1"></i>このシフトを削除
+                </button>
+                <div class="flex gap-2">
+                    <button onclick="closeModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100 transition">キャンセル</button>
+                    <button onclick="saveModalLocation()" class="px-5 py-2 rounded-xl text-sm font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm transition">保存する</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 確認ダイアログモーダル (confirm()の代替) -->
+    <div id="confirmModal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl fade-in text-center">
+            <div class="w-12 h-12 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center mx-auto mb-4 text-xl">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h3 class="font-bold text-lg text-slate-800 mb-2">すべてのデータを消去しますか？</h3>
+            <p class="text-xs text-slate-500 mb-6">現在登録されているすべてのシフト予定が削除されます。この操作は元に戻せません。</p>
+            <div class="flex gap-3 justify-center">
+                <button onclick="closeConfirmModal()" class="flex-1 py-2.5 rounded-xl text-sm font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 transition">キャンセル</button>
+                <button onclick="executeClearAll()" class="flex-1 py-2.5 rounded-xl text-sm font-bold bg-rose-600 hover:bg-rose-700 text-white transition">削除する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg text-sm font-medium flex items-center gap-2.5 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMessage">通知メッセージ</span>
+    </div>
+
+    <script>
+        // ==========================================
+        // 状態管理・初期化処理
+        // ==========================================
+        let shifts = [];
+        let currentTab = 'timeline';
+        let editingShiftId = null;
+
+        // ページ読み込み時の初期化
+        window.addEventListener('DOMContentLoaded', () => {
+            const saved = localStorage.getItem('ai_shift_organizer_data');
+            if (saved) {
+                try {
+                    shifts = JSON.parse(saved);
+                } catch (e) {
+                    shifts = [];
+                }
+            }
+            if (shifts.length === 0) {
+                loadSampleData(true);
+            } else {
+                renderAll();
+            }
+
+            // デフォルト日付を今日に設定
+            const today = new Date().toISOString().split('T')[0];
+            const dateInput = document.getElementById('inputDate');
+            if (dateInput) dateInput.value = today;
+        });
+
+        function saveToStorage() {
+            localStorage.setItem('ai_shift_organizer_data', JSON.stringify(shifts));
+        }
+
+        function generateId() {
+            return 'sh_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toastIcon');
+            const msg = document.getElementById('toastMessage');
+
+            msg.textContent = message;
+            icon.className = isError
+                ? 'fa-solid fa-circle-exclamation text-rose-400'
+                : 'fa-solid fa-circle-check text-emerald-400';
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3200);
+        }
+
+        // ==========================================
+        // サンプルデータ読込
+        // ==========================================
+        function loadSampleData(silent = false) {
+            const year = new Date().getFullYear();
+            const sample = [
+                { id: generateId(), name: '佐藤', date: `${year}-12-01`, location: '9:00-14:00' },
+                { id: generateId(), name: '佐藤', date: `${year}-12-02`, location: '終日OK' },
+                { id: generateId(), name: '佐藤', date: `${year}-12-03`, location: '10:00-15:00' },
+                { id: generateId(), name: '鈴木', date: `${year}-12-01`, location: '13:00-18:00' },
+                { id: generateId(), name: '鈴木', date: `${year}-12-02`, location: '17:00-22:00' },
+                { id: generateId(), name: '鈴木', date: `${year}-12-03`, location: '18:00-23:00' },
+                { id: generateId(), name: '高橋', date: `${year}-12-01`, location: '17:00-23:00' },
+                { id: generateId(), name: '高橋', date: `${year}-12-02`, location: '9:00-15:00' },
+                { id: generateId(), name: '田中', date: `${year}-12-01`, location: '10:00-16:00' },
+                { id: generateId(), name: '田中', date: `${year}-12-03`, location: '未定' }
+            ];
+            shifts = sample;
+            saveToStorage();
+            renderAll();
+            if (!silent) showToast('サンプルデータを読み込みました');
+        }
+
+        // ==========================================
+        // テキスト・CSV解析エンジン（自由文章・文脈記憶対応）
+        // ==========================================
+        function normalizeText(str) {
+            return str
+                .replace(/[０-９]/g, s => String.fromCharCode(s.charCodeAt(0) - 0xFEE0))
+                .replace(/[／]/g, '/')
+                .replace(/[：]/g, ':')
+                .replace(/[〜～ー－‐—–]/g, '-')
+                .replace(/[（]/g, '(')
+                .replace(/[）]/g, ')')
+                .replace(/[、，]/g, ',')
+                .replace(/　/g, ' ');
+        }
+
+        function extractTimeStr(text) {
+            let cleaned = text;
+            let foundTime = '';
+
+            // キーワード系（終日・早番・遅番など）
+            const kwMatch = cleaned.match(/(終日OK|終日|フルタイム|フル|早番|遅番|午前|午後|ランチ|ディナー|夜)/);
+            if (kwMatch) {
+                foundTime = kwMatch[1] === '終日' || kwMatch[1] === 'フル' || kwMatch[1] === 'フルタイム' ? '終日OK' : kwMatch[1];
+                cleaned = cleaned.replace(kwMatch[0], ' ');
+                return { time: foundTime, rest: cleaned };
+            }
+
+            // 範囲時間: "9:00-14:00", "9時30分-14時", "9時半-14時半", "10-15時"
+            const rangeRegex = /(\d{1,2})(?:[:時](\d{1,2}|半)?分?)?\s*-\s*(\d{1,2})(?:[:時](\d{1,2}|半)?分?)?時?/;
+            const rMatch = cleaned.match(rangeRegex);
+            if (rMatch) {
+                if (rMatch[0].includes(':') || rMatch[0].includes('時') || rMatch[0].includes('半')) {
+                    const h1 = parseInt(rMatch[1], 10);
+                    const m1 = rMatch[2] === '半' ? '30' : (rMatch[2] ? rMatch[2].padStart(2, '0') : '00');
+                    const h2 = parseInt(rMatch[3], 10);
+                    const m2 = rMatch[4] === '半' ? '30' : (rMatch[4] ? rMatch[4].padStart(2, '0') : '00');
+                    foundTime = `${h1}:${m1}-${h2}:${m2}`;
+                    cleaned = cleaned.replace(rMatch[0], ' ');
+                    return { time: foundTime, rest: cleaned };
+                }
+            }
+
+            // 開始のみ: "18:00-", "18時から", "18時半〜"
+            const openRegex = /(\d{1,2})(?:[:時](\d{1,2}|半)?分?)時?\s*(?:-|から|以降)/;
+            const oMatch = cleaned.match(openRegex);
+            if (oMatch) {
+                const h1 = parseInt(oMatch[1], 10);
+                const m1 = oMatch[2] === '半' ? '30' : (oMatch[2] ? oMatch[2].padStart(2, '0') : '00');
+                foundTime = `${h1}:${m1}〜`;
+                cleaned = cleaned.replace(oMatch[0], ' ');
+                return { time: foundTime, rest: cleaned };
+            }
+
+            // 終了のみ: "-15:00", "15時まで"
+            const closeRegex = /(?:-)?(\d{1,2})(?:[:時](\d{1,2}|半)?分?)時?\s*まで/;
+            const cMatch = cleaned.match(closeRegex);
+            if (cMatch) {
+                const h2 = parseInt(cMatch[1], 10);
+                const m2 = cMatch[2] === '半' ? '30' : (cMatch[2] ? cMatch[2].padStart(2, '0') : '00');
+                foundTime = `〜${h2}:${m2}`;
+                cleaned = cleaned.replace(cMatch[0], ' ');
+                return { time: foundTime, rest: cleaned };
+            }
+
+            return { time: '', rest: cleaned };
+        }
+
+        function cleanStaffName(raw) {
+            let s = raw
+                .replace(/\([月火水木金土日祝]\)/g, ' ')
+                .replace(/【.*?】|\[.*?\]/g, ' ')
+                .replace(/お疲れ様です[!！。、]*|お疲れさまです[!！。、]*|よろしくお願いします[!！。、]*|お願いします[!！。、]*|シフト希望[!！。、：:]*/g, ' ')
+                .replace(/入れます[!！。、]*|出られます[!！。、]*|可能です[!！。、]*|希望[!！。、]*/g, ' ')
+                .replace(/^[・\-\*\•\s、。!！?？:：]+|[・\-\*\•\s、。!！?？:：]+$/g, '')
+                .trim();
+
+            if (!s) return '';
+
+            const stopWords = new Set([
+                '今週', '来週', '再来週', '先週', '今月', '来月', '今日', '明日', '明後日',
+                'シフト', '予定', 'スケジュール', '連絡', '提出', '提出します', '確認',
+                '休み', 'お休み', '公休', '希望休', 'NG', 'ng', '不可', '無理',
+                '以下', '通り', 'です', 'ます', 'でした', 'こんにちは', 'こんばんは', 'おはようございます'
+            ]);
+
+            const tokens = s.split(/\s+/).map(token => {
+                return token
+                    .replace(/(さん|くん|ちゃん|様|氏|先生|店長)$/, '')
+                    .replace(/(です|ます|でした)$/, '')
+                    .replace(/(は|が|の|に|を|も|で|と)$/, '');
+            }).filter(t => {
+                if (!t || /^\d+$/.test(t)) return false;
+                if (stopWords.has(t)) return false;
+                if (/^(今週|来週|再来週|今月|来月|シフト|予定)/.test(t)) return false;
+                return true;
+            });
+
+            return tokens.join(' ');
+        }
+
+        function parseBulkText() {
+            const rawInput = document.getElementById('bulkInput').value;
+            if (!rawInput.trim()) {
+                showToast('テキストを入力してください', true);
+                return;
+            }
+
+            const defaultYear = new Date().getFullYear();
+            const lines = rawInput.split(/\r?\n/);
+            let contextName = '';
+            let addedCount = 0;
+
+            lines.forEach(line => {
+                const normLine = normalizeText(line).trim();
+                if (!normLine) return;
+
+                const dateRegex = /(?:(\d{4})[\/\-年])?(\d{1,2})[\/月](\d{1,2})日?/g;
+                const matches = [...normLine.matchAll(dateRegex)];
+
+                if (matches.length === 0) {
+                    const possibleName = cleanStaffName(normLine);
+                    if (possibleName && possibleName.length <= 15) {
+                        contextName = possibleName;
+                    }
+                    return;
+                }
+
+                for (let i = 0; i < matches.length; i++) {
+                    const m = matches[i];
+                    const startIdx = i === 0 ? 0 : m.index;
+                    const endIdx = (i + 1 < matches.length) ? matches[i + 1].index : normLine.length;
+                    const segment = normLine.slice(startIdx, endIdx);
+
+                    const year = m[1] ? parseInt(m[1], 10) : defaultYear;
+                    const month = String(parseInt(m[2], 10)).padStart(2, '0');
+                    const day = String(parseInt(m[3], 10)).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+
+                    const withoutDate = segment.replace(m[0], ' ');
+                    const { time, rest } = extractTimeStr(withoutDate);
+                    const extractedName = cleanStaffName(rest);
+
+                    if (extractedName) {
+                        contextName = extractedName;
+                    }
+
+                    const finalName = extractedName || contextName || 'スタッフ未定';
+                    const finalLocation = time || '未定';
+
+                    upsertShift(finalName, dateStr, finalLocation);
+                    addedCount++;
+                }
+            });
+
+            if (addedCount > 0) {
+                saveToStorage();
+                renderAll();
+                showToast(`${addedCount}件のシフトを解析・反映しました`);
+            } else {
+                showToast('日付を認識できませんでした（例：12/1 や 12月1日）', true);
+            }
+        }
+
+        function upsertShift(name, date, location) {
+            const existingIdx = shifts.findIndex(s => s.name === name && s.date === date);
+            if (existingIdx >= 0) {
+                shifts[existingIdx].location = location;
+            } else {
+                shifts.push({
+                    id: generateId(),
+                    name,
+                    date,
+                    location
+                });
+            }
+        }
+
+        function addSingleShift(event) {
+            event.preventDefault();
+            const name = document.getElementById('inputName').value.trim();
+            const date = document.getElementById('inputDate').value;
+            const rawLoc = document.getElementById('inputLocation').value.trim();
+
+            if (!name || !date) return;
+
+            let location = '未定';
+            if (rawLoc) {
+                const { time } = extractTimeStr(normalizeText(rawLoc));
+                location = time || rawLoc;
+            }
+
+            upsertShift(name, date, location);
+            saveToStorage();
+            renderAll();
+            document.getElementById('inputLocation').value = '';
+            showToast(`${name}さんのシフトを追加しました`);
+        }
+
+        function quickAdd(name, date) {
+            upsertShift(name, date, '9:00-14:00');
+            saveToStorage();
+            renderAll();
+            const added = shifts.find(s => s.name === name && s.date === date);
+            if (added) openEditModal(added.id);
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('bulkInput').value = e.target.result;
+                parseBulkText();
+                event.target.value = '';
+            };
+            reader.readAsText(file, 'UTF-8');
+        }
+
+        function exportCSV() {
+            if (shifts.length === 0) {
+                showToast('出力するデータがありません', true);
+                return;
+            }
+            const sorted = [...shifts].sort((a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name));
+            let csv = '\uFEFF日付,曜日,スタッフ名,入り可能時間\n';
+            sorted.forEach(s => {
+                const disp = formatDisplayDate(s.date).split(' ');
+                csv += `"${s.date}","${disp[1] || ''}","${s.name}","${s.location}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `shift_schedule_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('CSVファイルをダウンロードしました');
+        }
+
+        // ==========================================
+        // 表示フォーマット・描画コントロール
+        // ==========================================
+        function formatDisplayDate(dateStr) {
+            const parts = dateStr.split('-');
+            if (parts.length !== 3) return dateStr;
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10);
+            const d = parseInt(parts[2], 10);
+            const dt = new Date(y, m - 1, d);
+            const days = ['日', '月', '火', '水', '木', '金', '土'];
+            return `${m}/${d} (${days[dt.getDay()]})`;
+        }
+
+        function getTimeBadgeStyle(loc) {
+            if (!loc || loc === '未定') return 'bg-amber-100 text-amber-800 border-amber-300';
+            if (loc.includes('終日')) return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+            if (loc.startsWith('9:') || loc.startsWith('8:') || loc.startsWith('10:') || loc.includes('早番')) {
+                return 'bg-sky-100 text-sky-800 border-sky-300';
+            }
+            if (loc.startsWith('17:') || loc.startsWith('18:') || loc.startsWith('19:') || loc.includes('遅番')) {
+                return 'bg-purple-100 text-purple-800 border-purple-300';
+            }
+            return 'bg-indigo-100 text-indigo-800 border-indigo-300';
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active', 'border-indigo-600', 'text-indigo-600', 'font-bold');
+                btn.classList.add('border-transparent', 'text-slate-500', 'font-medium');
+            });
+            const activeBtn = document.getElementById('tab-' + tabName);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
+                activeBtn.classList.add('active', 'border-indigo-600', 'text-indigo-600', 'font-bold');
+            }
+            renderAll();
+        }
+
+        function getFilteredShifts() {
+            const q = document.getElementById('searchFilter').value.trim().toLowerCase();
+            if (!q) return shifts;
+            return shifts.filter(s =>
+                s.name.toLowerCase().includes(q) ||
+                s.date.includes(q) ||
+                formatDisplayDate(s.date).toLowerCase().includes(q) ||
+                (s.location && s.location.toLowerCase().includes(q))
+            );
+        }
+
+        function renderAll() {
+            updateStats();
+            const container = document.getElementById('viewContainer');
+            const filtered = getFilteredShifts();
+
+            if (filtered.length === 0) {
+                container.innerHTML = `
+                    <div class="h-full min-h-[260px] flex flex-col items-center justify-center text-slate-400 text-center p-6">
+                        <div class="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-3 text-2xl text-slate-300">
+                            <i class="fa-regular fa-calendar-xmark"></i>
+                        </div>
+                        <p class="font-bold text-slate-600 mb-1">表示するシフトデータがありません</p>
+                        <p class="text-xs">左のフォームからシフトを貼り付けるか、「サンプル読込」をお試しください。</p>
+                    </div>
+                `;
+                return;
+            }
+
+            if (currentTab === 'timeline') {
+                renderTimelineView(container, filtered);
+            } else if (currentTab === 'matrix') {
+                renderMatrixView(container, filtered);
+            } else if (currentTab === 'byDate') {
+                renderByDateView(container, filtered);
+            } else if (currentTab === 'byPerson') {
+                renderByPersonView(container, filtered);
+            }
+        }
+
+        function updateStats() {
+            const uniquePeople = new Set(shifts.map(s => s.name));
+            const uniqueDays = new Set(shifts.map(s => s.date));
+            const unassigned = shifts.filter(s => !s.location || s.location === '未定').length;
+
+            document.getElementById('statPeople').textContent = `${uniquePeople.size}名`;
+            document.getElementById('statDays').textContent = `${uniqueDays.size}日`;
+            document.getElementById('statUnassigned').textContent = `${unassigned}件`;
+        }
+
+        // 時間文字列から開始・終了時間（数値）を解析（例: 9:30-14:00 -> {start: 9.5, end: 14.0}）
+        function parseTimeRangeHours(loc) {
+            if (!loc || loc === '未定') return null;
+            if (loc.includes('終日')) return { start: 8, end: 23, label: loc, color: 'bg-emerald-500' };
+            if (loc.includes('早番')) return { start: 8, end: 15, label: loc, color: 'bg-sky-500' };
+            if (loc.includes('遅番')) return { start: 16, end: 23, label: loc, color: 'bg-purple-500' };
+            if (loc.includes('午前') || loc.includes('ランチ')) return { start: 9, end: 14, label: loc, color: 'bg-sky-500' };
+            if (loc.includes('午後')) return { start: 13, end: 18, label: loc, color: 'bg-indigo-500' };
+            if (loc.includes('ディナー') || loc.includes('夜')) return { start: 17, end: 23, label: loc, color: 'bg-purple-500' };
+
+            const rangeMatch = loc.match(/(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})/);
+            if (rangeMatch) {
+                const s = parseInt(rangeMatch[1], 10) + parseInt(rangeMatch[2], 10) / 60;
+                const e = parseInt(rangeMatch[3], 10) + parseInt(rangeMatch[4], 10) / 60;
+                return { start: s, end: Math.max(s + 0.5, e), label: loc, color: 'bg-indigo-500' };
+            }
+
+            const openMatch = loc.match(/(\d{1,2}):(\d{2})〜/);
+            if (openMatch) {
+                const s = parseInt(openMatch[1], 10) + parseInt(openMatch[2], 10) / 60;
+                return { start: s, end: 23, label: loc, color: 'bg-indigo-500' };
+            }
+
+            const closeMatch = loc.match(/〜(\d{1,2}):(\d{2})/);
+            if (closeMatch) {
+                const e = parseInt(closeMatch[1], 10) + parseInt(closeMatch[2], 10) / 60;
+                return { start: 8, end: e, label: loc, color: 'bg-indigo-500' };
+            }
+
+            return null;
+        }
+
+        // 1. タイムバー表（1時間刻みガントチャート）
+        function renderTimelineView(container, data) {
+            const dates = [...new Set(data.map(s => s.date))].sort();
+            const startHour = 8;
+            const endHour = 23;
+            const totalHours = endHour - startHour; // 15時間分 (8:00〜23:00)
+
+            let hourHeaders = '';
+            for (let h = startHour; h < endHour; h++) {
+                hourHeaders += `<div class="flex-1 text-center text-[10px] font-semibold text-slate-400 border-l border-slate-200 py-1">${h}</div>`;
+            }
+
+            let html = `<div class="space-y-6 fade-in">`;
+
+            dates.forEach(date => {
+                const dayShifts = data.filter(s => s.date === date).sort((a, b) => a.name.localeCompare(b.name));
+                const dispDate = formatDisplayDate(date);
+                const isSun = dispDate.includes('(日)');
+                const isSat = dispDate.includes('(土)');
+                const badgeColor = isSun ? 'bg-rose-100 text-rose-700' : isSat ? 'bg-sky-100 text-sky-700' : 'bg-slate-100 text-slate-700';
+
+                // 時間帯ごとの人数カウント（8時〜22時）
+                const hourlyCounts = Array(totalHours).fill(0);
+                dayShifts.forEach(s => {
+                    const parsed = parseTimeRangeHours(s.location);
+                    if (parsed) {
+                        for (let h = startHour; h < endHour; h++) {
+                            if (parsed.start < h + 1 && parsed.end > h) {
+                                hourlyCounts[h - startHour]++;
+                            }
+                        }
+                    }
+                });
+
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                        <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded-lg text-xs font-bold ${badgeColor}">${escapeHTML(dispDate)}</span>
+                                <span class="text-xs text-slate-500 font-medium">稼働予定: <strong class="text-slate-800">${dayShifts.length}名</strong></span>
+                            </div>
+                            <span class="text-[11px] text-slate-400">バーをクリックで時間編集</span>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <div class="min-w-[640px]">
+                                <!-- 時間軸ヘッダー -->
+                                <div class="flex border-b border-slate-200 bg-slate-50/50">
+                                    <div class="w-28 shrink-0 px-3 py-1 text-[11px] font-bold text-slate-500 flex items-center">スタッフ</div>
+                                    <div class="flex-grow flex">${hourHeaders}</div>
+                                </div>
+                `;
+
+                dayShifts.forEach(s => {
+                    const parsed = parseTimeRangeHours(s.location);
+                    let barHtml = '';
+
+                    if (parsed) {
+                        const clampedStart = Math.max(startHour, Math.min(endHour, parsed.start));
+                        const clampedEnd = Math.max(clampedStart + 0.5, Math.min(endHour, parsed.end));
+                        const leftPct = ((clampedStart - startHour) / totalHours) * 100;
+                        const widthPct = ((clampedEnd - clampedStart) / totalHours) * 100;
+
+                        barHtml = `
+                            <button onclick="openEditModal('${s.id}')" style="left: ${leftPct}%; width: ${widthPct}%;"
+                                class="absolute top-1.5 bottom-1.5 ${parsed.color} hover:opacity-90 text-white rounded-md shadow-xs px-2 flex items-center justify-center text-[11px] font-bold truncate transition cursor-pointer"
+                                title="${escapeHTML(s.name)}: ${escapeHTML(s.location)}">
+                                ${escapeHTML(s.location)}
+                            </button>
+                        `;
+                    } else {
+                        barHtml = `
+                            <button onclick="openEditModal('${s.id}')"
+                                class="absolute inset-y-1.5 left-2 px-3 bg-amber-100 hover:bg-amber-200 text-amber-800 border border-amber-300 rounded-md text-[11px] font-bold flex items-center gap-1 transition cursor-pointer">
+                                <i class="fa-regular fa-clock"></i> ${escapeHTML(s.location || '未定')}（クリックして設定）
+                            </button>
+                        `;
+                    }
+
+                    // 背景グリッド線
+                    let gridBg = '';
+                    for (let h = startHour; h < endHour; h++) {
+                        gridBg += `<div class="flex-1 border-l border-slate-100 h-full"></div>`;
+                    }
+
+                    html += `
+                        <div class="flex border-b border-slate-100 last:border-b-0 hover:bg-slate-50/80 transition h-10">
+                            <div class="w-28 shrink-0 px-3 flex items-center justify-between border-r border-slate-100">
+                                <span class="text-xs font-bold text-slate-700 truncate">${escapeHTML(s.name)}</span>
+                            </div>
+                            <div class="flex-grow relative flex">
+                                ${gridBg}
+                                ${barHtml}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // 時間別合計人数フッター
+                let countCells = '';
+                hourlyCounts.forEach(cnt => {
+                    const cellStyle = cnt === 0
+                        ? 'text-slate-300 bg-slate-50/30'
+                        : cnt >= 3
+                            ? 'text-emerald-700 bg-emerald-50/70 font-bold'
+                            : 'text-indigo-700 bg-indigo-50/40 font-semibold';
+                    countCells += `<div class="flex-1 text-center text-[10px] border-l border-slate-200 py-1 ${cellStyle}">${cnt}人</div>`;
+                });
+
+                html += `
+                                <div class="flex border-t border-slate-200 bg-slate-50">
+                                    <div class="w-28 shrink-0 px-3 py-1 text-[10px] font-bold text-slate-500 flex items-center">時間別人数</div>
+                                    <div class="flex-grow flex">${countCells}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // 2. シフトマトリクス表（スタッフ × 日付）
+        function renderMatrixView(container, data) {
+            const dates = [...new Set(data.map(s => s.date))].sort();
+            const people = [...new Set(data.map(s => s.name))].sort((a, b) => a.localeCompare(b));
+
+            let html = `
+                <div class="overflow-x-auto fade-in border border-slate-200 rounded-xl">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 border-b border-slate-200">
+                                <th class="sticky left-0 z-10 bg-slate-50 px-4 py-3 text-xs font-bold text-slate-600 border-r border-slate-200 min-w-[120px]">スタッフ名</th>
+            `;
+
+            dates.forEach(d => {
+                const disp = formatDisplayDate(d);
+                const isSun = disp.includes('(日)');
+                const isSat = disp.includes('(土)');
+                const color = isSun ? 'text-rose-600' : isSat ? 'text-sky-600' : 'text-slate-700';
+                html += `<th class="px-3 py-3 text-xs font-bold ${color} text-center border-r border-slate-100 min-w-[115px] whitespace-nowrap">${escapeHTML(disp)}</th>`;
+            });
+
+            html += `</tr></thead><tbody class="divide-y divide-slate-100">`;
+
+            people.forEach(person => {
+                html += `
+                    <tr class="hover:bg-slate-50/70 transition">
+                        <td class="sticky left-0 z-10 bg-white px-4 py-3 text-xs font-bold text-slate-800 border-r border-slate-200 whitespace-nowrap">
+                            ${escapeHTML(person)}
+                        </td>
+                `;
+
+                dates.forEach(date => {
+                    const shift = data.find(s => s.name === person && s.date === date);
+                    if (shift) {
+                        const badge = getTimeBadgeStyle(shift.location);
+                        html += `
+                            <td class="p-2 text-center border-r border-slate-100">
+                                <button onclick="openEditModal('${shift.id}')" class="w-full py-1.5 px-2 rounded-lg border text-xs font-bold ${badge} hover:opacity-80 transition truncate">
+                                    ${escapeHTML(shift.location)}
+                                </button>
+                            </td>
+                        `;
+                    } else {
+                        html += `
+                            <td class="p-2 text-center border-r border-slate-100">
+                                <button onclick="quickAdd('${escapeHTML(person).replace(/'/g, "\\'")}', '${date}')" class="w-full py-1.5 px-2 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 text-xs transition" title="シフトを追加">
+                                    <i class="fa-solid fa-plus"></i>
+                                </button>
+                            </td>
+                        `;
+                    }
+                });
+
+                html += `</tr>`;
+            });
+
+            html += `</tbody></table></div>`;
+            container.innerHTML = html;
+        }
+
+        // 3. 日付別ビュー（何時に誰が入れるか）
+        function renderByDateView(container, data) {
+            const dates = [...new Set(data.map(s => s.date))].sort();
+            let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 fade-in">`;
+
+            dates.forEach(date => {
+                const dayShifts = data.filter(s => s.date === date).sort((a, b) => a.location.localeCompare(b.location));
+                const disp = formatDisplayDate(date);
+                const isSun = disp.includes('(日)');
+                const isSat = disp.includes('(土)');
+                const headerBg = isSun ? 'bg-rose-50 border-rose-100 text-rose-800' : isSat ? 'bg-sky-50 border-sky-100 text-sky-800' : 'bg-slate-50 border-slate-200 text-slate-800';
+
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs flex flex-col">
+                        <div class="px-4 py-3 border-b ${headerBg} flex items-center justify-between">
+                            <span class="font-bold text-sm">${escapeHTML(disp)}</span>
+                            <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/80">${dayShifts.length}名</span>
+                        </div>
+                        <div class="p-3 divide-y divide-slate-100 flex-grow">
+                `;
+
+                dayShifts.forEach(s => {
+                    const badge = getTimeBadgeStyle(s.location);
+                    html += `
+                        <div onclick="openEditModal('${s.id}')" class="py-2.5 px-2 flex items-center justify-between hover:bg-slate-50 rounded-lg cursor-pointer transition">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                                    ${escapeHTML(s.name.slice(0, 1))}
+                                </div>
+                                <span class="text-sm font-bold text-slate-800">${escapeHTML(s.name)}</span>
+                            </div>
+                            <span class="px-2.5 py-1 rounded-lg border text-xs font-bold ${badge}">
+                                ${escapeHTML(s.location)}
+                            </span>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // 4. 担当者別一覧ビュー
+        function renderByPersonView(container, data) {
+            const people = [...new Set(data.map(s => s.name))].sort((a, b) => a.localeCompare(b));
+            let html = `<div class="grid grid-cols-1 md:grid-cols-2 gap-4 fade-in">`;
+
+            people.forEach(person => {
+                const personShifts = data.filter(s => s.name === person).sort((a, b) => a.date.localeCompare(b.date));
+                html += `
+                    <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs">
+                        <div class="bg-slate-50 px-4 py-3 border-b border-slate-200 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <i class="fa-solid fa-user text-indigo-600 text-xs"></i>
+                                <span class="font-bold text-sm text-slate-800">${escapeHTML(person)}</span>
+                            </div>
+                            <span class="text-xs font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-full">計 ${personShifts.length}日</span>
+                        </div>
+                        <div class="p-3 divide-y divide-slate-100">
+                `;
+
+                personShifts.forEach(s => {
+                    const badge = getTimeBadgeStyle(s.location);
+                    html += `
+                        <div onclick="openEditModal('${s.id}')" class="py-2 px-2 flex items-center justify-between hover:bg-slate-50 rounded-lg cursor-pointer transition">
+                            <span class="text-xs font-bold text-slate-600">${escapeHTML(formatDisplayDate(s.date))}</span>
+                            <span class="px-2.5 py-1 rounded-lg border text-xs font-bold ${badge}">${escapeHTML(s.location)}</span>
+                        </div>
+                    `;
+                });
+
+                html += `</div></div>`;
+            });
+
+            html += `</div>`;
+            container.innerHTML = html;
+        }
+
+        // ==========================================
+        // 編集モーダル・削除処理
+        // ==========================================
+        function openEditModal(shiftId) {
+            const shift = shifts.find(s => s.id === shiftId);
+            if (!shift) return;
+
+            editingShiftId = shiftId;
+            document.getElementById('modalInfo').innerHTML = `
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-900">${escapeHTML(shift.name)} さん</span>
+                    <span class="text-xs font-bold bg-indigo-100 text-indigo-800 px-2.5 py-1 rounded-lg">${escapeHTML(formatDisplayDate(shift.date))}</span>
+                </div>
+            `;
+
+            const presets = ['9:00-14:00', '10:00-15:00', '13:00-18:00', '17:00-22:00', '18:00-23:00', '終日OK', '早番', '遅番', '未定'];
+            const existingLocs = [...new Set(shifts.map(s => s.location).filter(Boolean))];
+            const allButtons = [...new Set([...presets, ...existingLocs])].slice(0, 12);
+
+            const btnContainer = document.getElementById('quickLocationButtons');
+            btnContainer.innerHTML = allButtons.map(loc => `
+                <button type="button" onclick="document.getElementById('modalLocationInput').value='${escapeHTML(loc).replace(/'/g, "\\'")}'"
+                    class="text-xs bg-slate-100 hover:bg-indigo-100 hover:text-indigo-700 text-slate-700 font-medium px-2.5 py-1.5 rounded-lg transition">
+                    ${escapeHTML(loc)}
+                </button>
+            `).join('');
+
+            document.getElementById('modalLocationInput').value = shift.location || '';
+
+            const modal = document.getElementById('editModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            editingShiftId = null;
+            const modal = document.getElementById('editModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function saveModalLocation() {
+            if (!editingShiftId) return;
+            const shift = shifts.find(s => s.id === editingShiftId);
+            if (!shift) return;
+
+            const rawVal = document.getElementById('modalLocationInput').value.trim();
+            if (rawVal) {
+                const { time } = extractTimeStr(normalizeText(rawVal));
+                shift.location = time || rawVal;
+            } else {
+                shift.location = '未定';
+            }
+
+            saveToStorage();
+            renderAll();
+            closeModal();
+            showToast('シフト時間を更新しました');
+        }
+
+        function deleteCurrentShift() {
+            if (!editingShiftId) return;
+            shifts = shifts.filter(s => s.id !== editingShiftId);
+            saveToStorage();
+            renderAll();
+            closeModal();
+            showToast('シフトを削除しました');
+        }
+
+        // 全削除確認モーダル
+        function confirmClearAll() {
+            if (shifts.length === 0) {
+                showToast('削除するデータがありません', true);
+                return;
+            }
+            const modal = document.getElementById('confirmModal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeConfirmModal() {
+            const modal = document.getElementById('confirmModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function executeClearAll() {
+            shifts = [];
+            saveToStorage();
+            renderAll();
+            closeConfirmModal();
+            showToast('すべてのシフトデータを削除しました');
+        }
+    </script>
+</body>
+</html>
